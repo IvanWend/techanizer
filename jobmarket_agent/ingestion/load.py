@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import NamedTuple
+from uuid import UUID
 
 import psycopg
 from dotenv import load_dotenv
@@ -20,6 +21,7 @@ from jobmarket_agent.ingestion.remotive_client import fetch_latest_jobs as fetch
 from jobmarket_agent.ingestion.retention import WINDOW_DAYS, window_cutoff
 from jobmarket_agent.ingestion.web3_client import WEB3_ENDPOINT_URL
 from jobmarket_agent.ingestion.web3_client import fetch_latest_jobs as fetch_web3_jobs
+from jobmarket_agent.ops.run_log import begin_run, end_run
 
 load_dotenv()
 
@@ -280,31 +282,46 @@ def known_external_ids(conn, source: str) -> set[str]:
         return {row[0] for row in cur}
 
 
-def load_source(conn, name: str, fetch: Callable[[set[str]], list[Row]]) -> LoadStats:
-    rows = fetch(known_external_ids(conn, name))
-    fresh = within_window(rows)
-    logger.info(
-        "%s: fetched %d postings, %d within %d days.", name, len(rows), len(fresh), WINDOW_DAYS
-    )
+def load_source(
+    conn, name: str, fetch: Callable[[set[str]], list[Row]], run_id: UUID | None = None
+) -> LoadStats:
+    # run-log bookkeeping brackets the fetch: begin before any network I/O, end
+    # (with counts) after the upsert, end (with error) if anything throws. The
+    # helpers commit their own transactions, so the error row survives the
+    # rollback load_all performs on a failed source.
+    if run_id is not None:
+        begin_run(conn, run_id, name)
+    try:
+        rows = fetch(known_external_ids(conn, name))
+        fresh = within_window(rows)
+        logger.info(
+            "%s: fetched %d postings, %d within %d days.", name, len(rows), len(fresh), WINDOW_DAYS
+        )
 
-    stats = upsert_posting(conn, name, fresh)
-    logger.info(
-        "%s: inserted %d, updated %d, unchanged %d, failed %d.",
-        name,
-        stats.inserted,
-        stats.updated,
-        stats.unchanged,
-        stats.failed,
-    )
-    return stats
+        stats = upsert_posting(conn, name, fresh)
+        logger.info(
+            "%s: inserted %d, updated %d, unchanged %d, failed %d.",
+            name,
+            stats.inserted,
+            stats.updated,
+            stats.unchanged,
+            stats.failed,
+        )
+        if run_id is not None:
+            end_run(conn, run_id, name, len(rows), stats)
+        return stats
+    except Exception as exc:
+        if run_id is not None:
+            end_run(conn, run_id, name, None, error=str(exc)[:500])
+        raise
 
 
-def load_all(conn) -> LoadStats:
+def load_all(conn, run_id: UUID | None = None) -> LoadStats:
     total = LoadStats()
     succeeded = 0
     for name, fetch in SOURCES.items():
         try:
-            total += load_source(conn, name, fetch)
+            total += load_source(conn, name, fetch, run_id=run_id)
             succeeded += 1
         except Exception:
             logger.exception("%s: source failed, continuing with the rest", name)
