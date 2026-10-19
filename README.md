@@ -1,183 +1,179 @@
 # Remote Job Search Agent
 
-A **remote job search agent over heterogeneous boards.** It ingests tech job postings, extracts
-structured data from messy prose with an LLM, stores it in **Postgres + pgvector**, and answers
-analytical questions — *"what skills are trending for backend roles"*, *"which postings match this
-résumé"*.
+An applied-AI service for analyzing remote technology vacancies from four legally
+accessible sources: Hacker News *Who Is Hiring*, Remotive, Web3.career, and Habr
+Career.
 
-## How it works
+It turns inconsistent English- and Russian-language postings into structured,
+searchable data and answers questions such as:
 
+- Which skills are most common among senior backend roles?
+- What salary ranges are reported by currency or seniority?
+- Which vacancies are semantically closest to a role description?
+- Which companies and postings support a conclusion?
+
+This is a production-oriented semester project for integrating AI into a real data
+pipeline. The source mix is intentionally heterogeneous; it is not intended to be
+a statistically representative model of the whole labor market.
+
+## What is implemented
+
+```text
+Public board endpoints
+        │
+        ▼
+Postgres raw postings ──► LLM extraction with Pydantic validation
+        │                         │
+        │                         ▼
+        └──────────────► structured roles + grounded quotes
+                                  │
+                    Postgres + pgvector + bge-m3 embeddings
+                                  │
+             DeepSeek tool-calling agent / MCP tools / FastAPI API
+                                  │
+                         React + Vite frontend
 ```
-INGESTION    HN (Algolia) + Remotive + Web3.career + Habr Career ──►  raw_postings (Postgres)
-RETENTION    keep-everything; 90-day window is a query-time filter only
-EXTRACTION   LLM + Pydantic schema, grounded by verbatim quotes ──►  structured_postings
-STORAGE      Postgres + pgvector; local bge-m3 embeddings (1024-dim) ──►  posting_embeddings
-SCHEDULER    weekly load → extract → embed (ops/scheduler.py), logged to ingestion_runs
-AGENT        DeepSeek tool-calling loop: sql_query · vector_search · role_detail
-MCP          same three tools over stdio — no DeepSeek key
-SERVING      FastAPI (SSE streaming) · Langfuse tracing
-FRONTEND     React + Vite + Tailwind SPA, served from FastAPI StaticFiles
-```
 
-Four boards, remote only. Corpus size is not the goal — everything is kept, and the live agent only
-reads the last 90 days. Schema and extraction rules live in `db/schema/` and
-`jobmarket_agent/extraction/`, not here. Status: [docs/ROADMAP.md](docs/ROADMAP.md).
+- Four ingestion adapters with idempotent upserts and source-specific parsing.
+- Rolling 90-day live search window while preserving historical data for trends.
+- Structured extraction of company, title, skills, seniority, remote policy,
+  employment type, salary, and source quotes.
+- Skill normalization and aliasing across inconsistent source vocabulary.
+- PostgreSQL, pgvector, HNSW vector search, and local `bge-m3` embeddings.
+- Typed two-stage agent: tool-calling produces a language-neutral payload; a
+  second model writes English or Russian prose.
+- SQL analytics, semantic search, role details, SSE streaming, API-key gating,
+  rate limiting, token limits, and MCP access.
+- React UI with English/Russian output, light/dark themes, structured tables,
+  quotes, and explicit missing-data states.
+- Weekly `load → extract → embed` scheduler with per-source run logging.
 
-## Tech stack
+## Current status
 
-| Concern | Choice |
-|---|---|
-| Language | Python 3.13 |
-| Agent + extraction LLM | DeepSeek |
-| Structured outputs | Pydantic v2 |
-| Embeddings | `bge-m3` via local Ollama, `vector(1024)` — multilingual |
-| HTML parsing | BeautifulSoup 4 — Habr description bodies |
-| Database | Postgres 17 + pgvector |
-| API | FastAPI, SSE streaming |
-| Frontend | React + Vite + Tailwind — single-page chat UI, hand-written SSE client |
-| MCP | FastMCP stdio — same three tools, no DeepSeek key |
-| Tracing | Langfuse (cloud — us.cloud.langfuse.com) |
-| Orchestration | Docker Compose |
-| Testing / evals | pytest + custom eval scripts + gold-set JSON |
+- Backend and frontend quality gates pass: **226 Python tests**, Ruff, mypy,
+  frontend lint, and production build.
+- Agent evaluation currently reports **59/60** on the maintained suite.
+- The Russian prose model A/B run is prepared but not yet recorded.
+- The monthly report tab is currently a designed placeholder; report generation
+  and storage are not implemented yet.
+- VPS deployment with web and Ollama services is planned, but this repository is
+  currently a local/self-hosted setup.
 
-## Setup
+## Try it locally
 
-Developed on **WSL2 Ubuntu** with Docker Engine in WSL (systemd), not Docker Desktop. Requirements:
-Python 3.13 (`.python-version`), [uv](https://docs.astral.sh/uv/), Docker Engine + Compose,
-`postgresql-client`, a DeepSeek API key. Ollama for embeddings.
+### Requirements
+
+- Python 3.13, [uv](https://docs.astral.sh/uv/), and Docker Compose
+- PostgreSQL client (`psql`)
+- A DeepSeek API key
+- Ollama with the `bge-m3` embedding model
+- A Web3.career API token if that source is enabled
+
+### Install and configure
 
 ```bash
 uv sync
-cp .env.example .env          # fill in; .env is git-ignored
-set -a; . ./.env; set +a      # host-side expansion — see below
+cp .env.example .env
+# Fill in DEEPSEEK_API_KEY, DATABASE_URL, and other required values.
+set -a; . ./.env; set +a
+```
 
-docker compose up -d          # ./init is already in the repo; do not regenerate it
-docker compose ps             # wait for healthy
+Start PostgreSQL and apply the schema:
 
+```bash
+docker compose up -d
 for f in db/schema/*.sql; do
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
 done
 ```
 
-`init/001_extensions.sql` creates `vector` and `pg_trgm` on first boot only. Overwriting it drops
-`pg_trgm`. `004` fails if Adzuna rows are still present; a fresh database has none.
-`POSTGRES_PASSWORD` and the password in `DATABASE_URL` must match. `docker compose` reads `.env`
-itself; a bare `psql "$DATABASE_URL"` does not — source `.env` first, or the variable expands empty
-on the host.
+Load, extract, and embed postings:
 
 ```bash
 uv run python -m jobmarket_agent.ingestion.load
 uv run python -m jobmarket_agent.extraction.pipeline
-uv run python -m jobmarket_agent.storage.embed              # needs Ollama at OLLAMA_BASE_URL
-uv run python -m jobmarket_agent.ops.scheduler            # the three above, as one weekly run
-uv run python -m jobmarket_agent.agent.loop -q "what skills show up most for senior backend roles?"
+uv run python -m jobmarket_agent.storage.embed
+```
+
+Or run the scheduled pipeline as one command:
+
+```bash
+uv run python -m jobmarket_agent.ops.scheduler
+```
+
+Start the API and UI:
+
+```bash
 uv run uvicorn jobmarket_agent.serving.app:app
-uv run python -m jobmarket_agent.mcp.server             # stdio; silence means it is waiting
 ```
 
-The first Habr ingest is slow (one HTML request per posting). Later runs fetch only new ids.
-
-### `/ask` auth
-
-`/ask` is rate-limited per IP and, when `ASK_API_KEY` is set, requires
-`Authorization: Bearer <key>` (401 otherwise). Unset, it stays open for local dev and CI. The SPA
-reads the same value from `frontend/.env` as `VITE_ASK_API_KEY` and sends it as a header.
-
-**Known limitation:** a key sent from the browser bundle is visible to anyone who loads the page —
-it deters scripts and stray API clients, not a determined reader of the JS. It is a shared key, not
-per-user auth.
-
-Retention is keep-everything — nothing is purged. Re-snapshot before any schema change or
-re-extraction you care about, to a new date-stamped file, never in place. Two baselines live in
-`evals/snapshots/`:
-
-- `2026-08-12_raw.dump` — raw postings only.
-- `2026-10-19_structured.dump` — raw + structured + embeddings; this is what `jobmarket_eval` is
-  restored from.
+Open `http://localhost:8000`. The API also exposes:
 
 ```bash
-# raw corpus only
-docker exec job-market-agent-db-1 pg_dump -U jobmarket -d jobmarket \
-  -Fc -Z9 -t raw_postings > evals/snapshots/$(date +%F)_raw.dump
-
-# full structured baseline (raw + structured + embeddings)
-docker exec job-market-agent-db-1 pg_dump -U jobmarket -d jobmarket \
-  -Fc -Z9 > evals/snapshots/$(date +%F)_structured.dump
+curl http://localhost:8000/health
+curl --get 'http://localhost:8000/ask' \
+  --data-urlencode 'q=What skills are common among senior backend roles?' \
+  --data-urlencode 'lang=en'
 ```
 
-Evals restore the structured dump into `jobmarket_eval` (fresh DB, flip `db_meta.role` to `'eval'`,
-re-grant `jobmarket_ro` SELECT), reached as `jobmarket_ro` via `EVAL_DATABASE_URL`. Rebuild the
-gold-set candidate pool with `uv run python -m evals.generate_gold_dataset` (output is git-ignored).
+If `ASK_API_KEY` is set, add `-H "Authorization: Bearer $ASK_API_KEY"` to the
+second command.
 
-Toolchain gate, before any commit:
+The browser key is intentionally only a shared demo gate, not user
+authentication. It is visible to anyone who can load the frontend.
+
+## MCP access
+
+The same three database-backed tools are available through a stdio MCP server:
 
 ```bash
-uv run pre-commit run --all-files
-uv run ruff check jobmarket_agent/ evals/ tests/ && uv run mypy jobmarket_agent/ tests/ && uv run pytest -q
+uv run python -m jobmarket_agent.mcp.server
 ```
 
-Install the git hook once: `uv run pre-commit install`. The project is installable (`[build-system]`
-in `pyproject.toml`), so `uv run` installs it editable and `import jobmarket_agent` resolves;
-`pytest` keeps `pythonpath = ["."]` for the non-package `evals/` and `tests/` modules.
+Configure the MCP host with absolute paths and put `DATABASE_URL` and
+`OLLAMA_BASE_URL` in the host's `env` block. The MCP server does not require a
+DeepSeek key because the host supplies the model.
 
-If `docker compose up` cannot bind 5432, a Windows Postgres service owns the port
-(`Get-Service *postgres*` in an elevated PowerShell). If Ollama is on the Windows host, reach it at
-`localhost:11434` and keep globs out of `no_proxy`.
+## Project layout
 
-## MCP
-
-Any MCP client (Cursor, VS Code, or another agent runtime) can call the same three
-tools directly. The process does not use DeepSeek — the host is the model. `vector_search` still
-embeds through Ollama, so `OLLAMA_BASE_URL` must be reachable.
-
-Do not rely on `.env`. The host's working directory is not the repo, so `load_dotenv()` will
-not find it. Put `DATABASE_URL` and `OLLAMA_BASE_URL` in the config's `env` block (values from
-`.env`; no `DEEPSEEK_API_KEY`). Paths must be absolute. Restart the host after editing its config.
-
-Each host has its own config location — `.cursor/mcp.json` or `.vscode/mcp.json` in the repo,
-a desktop app's `mcpServers` block. The entry shape is the same everywhere: a `command`, `args`,
-and an `env` block, under a key the host reads.
-
-```json
-{
-  "mcpServers": {
-    "job-market": {
-      "command": "/absolute/path/to/uv",
-      "args": ["run", "--directory", "/absolute/path/to/repo", "python", "-m", "jobmarket_agent.mcp.server"],
-      "env": {
-        "DATABASE_URL": "postgresql://jobmarket:…@localhost:5432/jobmarket",
-        "OLLAMA_BASE_URL": "http://localhost:11434"
-      }
-    }
-  }
-}
+```text
+jobmarket_agent/ingestion/    board clients and loading
+jobmarket_agent/extraction/   schemas, prompts, normalization, pipeline
+jobmarket_agent/storage/      SQL analytics, embeddings, vector search
+jobmarket_agent/agent/        tools, schemas, localization, model loop
+jobmarket_agent/serving/      FastAPI and SSE streaming
+jobmarket_agent/mcp/          FastMCP server
+jobmarket_agent/ops/           scheduler and ingestion run log
+frontend/                     React/Vite/Tailwind UI
+db/schema/                    re-runnable database migrations
+tests/                        unit, contract, serving, and integration tests
+evals/                        frozen snapshots, gold data, and evaluations
+docs/                         roadmap, plan, and engineering decisions
 ```
 
-Run that `uv` command yourself before blaming the host. A process that sits silent is correct:
-stdio is waiting for the host to speak first on stdin.
+## Scope and limitations
 
-## Project structure
+- The corpus focuses on remote technology jobs and is biased toward startup,
+  Web3, Hacker News, Remotive, and Habr communities.
+- Three sources are primarily English and one is Russian. This reflects legal
+  source availability and provides a multilingual extraction/use case; it does
+  not represent national language proportions.
+- Currency values are kept in their stated currency and are not converted.
+- Four roles currently have no useful embedding and are invisible to semantic
+  search.
+- Contact information in raw postings can be exposed through detailed record
+  access; email redaction is intentionally out of scope.
+- Production deployment, automated backups, persistent monitoring, and the
+  monthly report are future work.
 
-```
-pyproject.toml         # deps (uv) + ruff/mypy/pytest; uv.lock is committed
-.python-version        # 3.13
-.env.example           # key names only; .env is git-ignored
-docker-compose.yml     # Postgres 17 + pgvector; ./init mounted for first boot
-init/                  # first-boot only — vector + pg_trgm
-db/schema/             # re-runnable DDL, 001–012
-jobmarket_agent/
-  ingestion/           # four board clients, load, purge
-  extraction/          # schema, transform, pipeline
-  storage/             # embed, vector search, analytics
-  agent/               # DeepSeek tool-calling loop
-  mcp/                 # FastMCP stdio server, same three tools
-  ops/                 # weekly scheduler entrypoint + ingestion_runs run-log
-  serving/             # FastAPI + SSE
-frontend/             # React + Vite + Tailwind SPA (builds to dist/, served by FastAPI)
-tests/
-evals/                 # gold-set generator, grounding audit, frozen snapshots
-docs/ROADMAP.md
+## Validation
+
+```bash
+uv run ruff check jobmarket_agent/ evals/ tests/
+uv run mypy jobmarket_agent/ tests/
+uv run pytest -q
+cd frontend && npm run lint && npm run build
 ```
 
-`init/` runs once, when the data directory is empty. `db/schema/` is the re-runnable path, applied
-by hand. No file belongs in both.
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for progress and [`docs/DECISIONS.md`](docs/DECISIONS.md)
+for the reasoning behind the data, agent, and operational design choices.
