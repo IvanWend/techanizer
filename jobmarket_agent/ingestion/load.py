@@ -4,7 +4,7 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import NamedTuple
 
 import psycopg
@@ -14,7 +14,7 @@ from jobmarket_agent.ingestion.habr_client import HABR_DELAY_S, HABR_LIST_URL
 from jobmarket_agent.ingestion.habr_client import fetch_description_html as fetch_habr_description
 from jobmarket_agent.ingestion.habr_client import fetch_vacancy_cards as fetch_habr_cards
 from jobmarket_agent.ingestion.habr_client import new_session as new_habr_session
-from jobmarket_agent.ingestion.hn_client import HNThread, fetch_thread, find_latest_hiring_thread
+from jobmarket_agent.ingestion.hn_client import HNThread, fetch_thread, find_hiring_threads
 from jobmarket_agent.ingestion.remotive_client import REMOTIVE_ENDPOINT_URL
 from jobmarket_agent.ingestion.remotive_client import fetch_latest_jobs as fetch_remotive_jobs
 from jobmarket_agent.ingestion.retention import WINDOW_DAYS, window_cutoff
@@ -37,6 +37,11 @@ RETURNING (xmax = 0) AS inserted;
 """
 
 KNOWN_IDS_SQL = "SELECT external_id FROM raw_postings WHERE source = %s"
+
+TOUCH_LAST_SEEN_SQL = """
+UPDATE raw_postings SET last_seen_at = now()
+ WHERE source = %s AND external_id = ANY(%s)
+"""
 
 # Habr's detail fetches are the one part of a run that takes minutes rather than
 # seconds, so it heartbeats instead of going silent. Per-posting logging would be
@@ -124,8 +129,16 @@ def habr_to_rows(cards: list[dict]) -> list[Row]:
 
 
 def fetch_hn_rows(known_ids: set[str]) -> list[Row]:
-    story_id, _ = find_latest_hiring_thread()
-    return hnthread_to_rows(fetch_thread(story_id))
+    # A monthly thread's comments span the month after its creation, so select
+    # threads with a one-month margin beyond the window; within_window() in
+    # load_source trims individual comments to the exact cutoff.
+    margin_cutoff = window_cutoff() - timedelta(days=31)
+    rows: list[Row] = []
+    for story_id, _title, created_at in find_hiring_threads():
+        if to_posted_at(created_at) < margin_cutoff:
+            continue
+        rows.extend(hnthread_to_rows(fetch_thread(story_id)))
+    return rows
 
 
 def fetch_remotive_rows(known_ids: set[str]) -> list[Row]:
@@ -219,7 +232,7 @@ def within_window(rows: list[Row]) -> list[Row]:
     return [row for row in rows if row.posted_at >= cutoff]
 
 
-def upsert_posting(conn, rows) -> LoadStats:
+def upsert_posting(conn, source: str, rows) -> LoadStats:
     inserted = updated = failed = 0
     # The outer block is the real transaction, so the source lands atomically
     # and conn.transaction() inside the loop opens a savepoint rather than
@@ -242,6 +255,15 @@ def upsert_posting(conn, rows) -> LoadStats:
                 inserted += 1
             else:
                 updated += 1
+
+        # last_seen_at records "the board still served this id to us" and must
+        # advance every run, not only when raw_text changed (a byte-identical
+        # posting is still live). The guarded upsert above skips unchanged rows,
+        # so the touch is a separate statement over the same row set; a row that
+        # failed to insert matches nothing and is skipped for free.
+        if rows:
+            cur.execute(TOUCH_LAST_SEEN_SQL, (source, [row.external_id for row in rows]))
+
     unchanged = len(rows) - inserted - updated - failed
     return LoadStats(inserted, updated, unchanged, failed)
 
@@ -265,7 +287,7 @@ def load_source(conn, name: str, fetch: Callable[[set[str]], list[Row]]) -> Load
         "%s: fetched %d postings, %d within %d days.", name, len(rows), len(fresh), WINDOW_DAYS
     )
 
-    stats = upsert_posting(conn, fresh)
+    stats = upsert_posting(conn, name, fresh)
     logger.info(
         "%s: inserted %d, updated %d, unchanged %d, failed %d.",
         name,

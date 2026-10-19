@@ -21,21 +21,25 @@ class HNThread:
     comments: list[HNComment]
 
 
-def find_latest_hiring_thread() -> tuple[str, str]:
+def find_hiring_threads() -> list[tuple[str, str, str]]:
+    """All 'Who is hiring' stories, newest-first, as (story_id, title, created_at)."""
     params: dict[str, str | int] = {
         "query": "who is hiring",
         "tags": "story,author_whoishiring",
-        "hitsPerPage": 10,
+        "hitsPerPage": 20,
     }
     resp = requests.get(ALGOLIA_SEARCH_URL, params=params, timeout=10)
     resp.raise_for_status()
 
     hits = resp.json()["hits"]
-    for hit in hits:
-        if "who is hiring" in hit["title"].lower():
-            return hit["objectID"], hit["title"]
-
-    raise RuntimeError(f"No 'Who is hiring' thread found in {len(hits)} newest whoishiring posts")
+    threads = [
+        (hit["objectID"], hit["title"], hit.get("created_at") or "")
+        for hit in hits
+        if "who is hiring" in hit["title"].lower()
+    ]
+    if not threads:
+        raise RuntimeError(f"No 'Who is hiring' thread found in {len(hits)} newest posts")
+    return threads
 
 
 def fetch_thread(story_id: str) -> HNThread:
@@ -61,10 +65,7 @@ def fetch_thread(story_id: str) -> HNThread:
 
 
 if __name__ == "__main__":
-    story_id, _ = find_latest_hiring_thread()
-    thread = fetch_thread(story_id)
-    print(f"thread:   {thread.title}")
-    print(f"story_id: {thread.story_id}")
-    print(f"posted:   {thread.created_at}")
-    print(f"comments: {len(thread.comments)}")
-    print(f"verify:   https://news.ycombinator.com/item?id={thread.story_id}")
+    threads = find_hiring_threads()
+    print(f"threads: {len(threads)}")
+    for story_id, title, created_at in threads:
+        print(f"  {story_id}  {title}  ({created_at})")
