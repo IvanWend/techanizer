@@ -75,6 +75,16 @@ uv run python -m jobmarket_agent.mcp.server             # stdio; silence means i
 
 The first Habr ingest is slow (one HTML request per posting). Later runs fetch only new ids.
 
+### `/ask` auth
+
+`/ask` is rate-limited per IP and, when `ASK_API_KEY` is set, requires
+`Authorization: Bearer <key>` (401 otherwise). Unset, it stays open for local dev and CI. The SPA
+reads the same value from `frontend/.env` as `VITE_ASK_API_KEY` and sends it as a header.
+
+**Known limitation:** a key sent from the browser bundle is visible to anyone who loads the page —
+it deters scripts and stray API clients, not a determined reader of the JS. It is a shared key, not
+per-user auth.
+
 Retention is keep-everything — nothing is purged. Re-snapshot before any schema change or
 re-extraction you care about (snapshots are the eval baseline), to a new date-stamped file, never
 in place. `evals/snapshots/2026-08-12_raw.dump` is the current one.
@@ -143,7 +153,7 @@ pyproject.toml         # deps (uv) + ruff/mypy/pytest; uv.lock is committed
 .env.example           # key names only; .env is git-ignored
 docker-compose.yml     # Postgres 17 + pgvector; ./init mounted for first boot
 init/                  # first-boot only — vector + pg_trgm
-db/schema/             # re-runnable DDL, 001–010
+db/schema/             # re-runnable DDL, 001–011
 jobmarket_agent/
   ingestion/           # four board clients, load, purge
   extraction/          # schema, transform, pipeline

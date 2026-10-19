@@ -35,8 +35,22 @@ ROADMAP.md.
   emails/contact, surfaceable via `role_detail`/MCP → note in README "Known limitations".
 
 ### Data quality
-- Skill alias v2 only (version-strip `java 17+`→`java`, whitespace/hyphen collapse
-  `rest api`→`rest-api`, typo tolerance). The one DQ fix kept; it affects every answer.
+- Skill alias v2 only. The one DQ fix kept; it affects every answer (skill-frequency
+  bars, `vector_search`, `role_detail` all read the stored `stack`).
+  - **version-strip** — drop a trailing version token, space-gated so a no-space token
+    (`ec2`, `html5`, `c++23`) survives: `java 17+`→`java`, `python 3.10+`→`python`.
+  - **separator fold** — whitespace/underscore/hyphen runs collapse to one `-`
+    (`rest api`/`rest_api`/`rest-api`→`rest-api`). Slash and dot stay literal: a slash is
+    ambiguous (`ci/cd` is one skill, `docker/k8s` is two) and a dot anchors node.js/react.js.
+  - **typo tolerance** — the explicit `STACK_ALIASES` map, not edit-distance; seeded from
+    corpus typos (`postgesql`/`postgress`→`postgres`, `oauth2`→`oauth`, `restapi`→`rest-api`).
+
+### API key
+- `/ask` is gated by a shared key (`ASK_API_KEY`). Unset → endpoint open (dev + CI); set →
+  every request needs `Authorization: Bearer <key>` (constant-time compare). `/health` and the
+  static mount stay open. The SPA sends `VITE_ASK_API_KEY` (from `frontend/.env`) as the header;
+  a key in the browser bundle is readable to anyone who loads the page — shared-key, not
+  per-user auth — documented in README "Known limitations".
 
 ### Answer contract
 - The agent returns a typed object; the UI renders it and nothing else — no free markdown, no

@@ -10,8 +10,9 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - **Production labor-market analyzer** (query box + monthly report + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
-- **PLAN steps 1–2 done:** structured answer contract; retention keep-everything + 90-day window
-  (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate).
+- **PLAN steps 1–3 done:** structured answer contract; retention keep-everything + 90-day window
+  (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
+  skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key.
 
 ## Phase 1 — Ingestion
 
@@ -69,4 +70,4 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. Follow `docs/PLAN.md` build order, step 3: skill alias v2 + `/ask` API key.
+1. Follow `docs/PLAN.md` build order, step 4: scheduler + run-log + live monthly aggregates.
