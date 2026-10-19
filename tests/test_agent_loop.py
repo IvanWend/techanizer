@@ -1,4 +1,10 @@
-from jobmarket_agent.agent.loop import assemble, build_agent, build_prose_agent
+from jobmarket_agent.agent.loop import (
+    assemble,
+    build_agent,
+    build_prose_agent,
+    prose_model_settings,
+    resolve_prose_model,
+)
 from jobmarket_agent.agent.schema import Fact, Payload, Prose, Quote, TableSpec
 
 
@@ -18,6 +24,19 @@ def test_build_prose_agent_is_offline_and_has_no_tools() -> None:
     # defer_model_check=True, same as stage 1, so this builds without a key.
     agent = build_prose_agent(lang="ru")
     assert set(agent._function_toolset.tools) == set()
+
+
+def test_resolve_prose_model_passes_through_deepseek() -> None:
+    # Non-Kimi models stay a plain string, inferred lazily so no key is needed.
+    assert resolve_prose_model("deepseek:deepseek-v4-flash") == "deepseek:deepseek-v4-flash"
+
+
+def test_prose_model_settings_kimi_skips_temperature() -> None:
+    # DeepSeek prose is pinned to temperature=0 for determinism; kimi-k3 rejects
+    # temperature=0 (400 "only 1 is allowed"), so its settings omit it and run on
+    # the model default.
+    assert prose_model_settings("deepseek:deepseek-v4-flash").get("temperature") == 0
+    assert prose_model_settings("moonshotai:kimi-k3").get("temperature") is None
 
 
 def test_assemble_fills_placeholders_and_attaches_labels() -> None:

@@ -562,7 +562,13 @@ Row = tuple[Question, str, list[str], bool, str]
 
 
 async def run_suite(
-    stage1_agent, prose_agent, conn, questions: list[Question], runs: int, lang: str
+    stage1_agent,
+    prose_agent,
+    conn,
+    questions: list[Question],
+    runs: int,
+    lang: str,
+    prose_model: str,
 ) -> list[Row]:
     rows: list[Row] = []
     for q in questions:
@@ -577,7 +583,7 @@ async def run_suite(
                 rows.append((q, "", [], False, "no output"))
                 continue
             try:
-                answer = await compose(payload, lang, prose_agent)
+                answer = await compose(payload, lang, prose_agent, prose_model)
             except Exception as e:
                 rows.append((q, "", [], False, f"prose error: {e}"))
                 continue
@@ -587,7 +593,13 @@ async def run_suite(
 
 
 async def run_cross(
-    stage1_agent, prose_en, prose_ru, conn, questions: list[CrossQuestion], runs: int
+    stage1_agent,
+    prose_en,
+    prose_ru,
+    conn,
+    questions: list[CrossQuestion],
+    runs: int,
+    prose_model: str,
 ) -> list[Row]:
     rows: list[Row] = []
     for q in questions:
@@ -602,8 +614,8 @@ async def run_cross(
                 rows.append((_as_question(q), "", [], False, "no output"))
                 continue
             try:
-                en_answer = await compose(en.output, "en", prose_en)
-                ru_answer = await compose(ru.output, "ru", prose_ru)
+                en_answer = await compose(en.output, "en", prose_en, prose_model)
+                ru_answer = await compose(ru.output, "ru", prose_ru, prose_model)
             except Exception as e:
                 rows.append((_as_question(q), "", [], False, f"prose error: {e}"))
                 continue
@@ -708,9 +720,15 @@ def main() -> None:
         stage1_agent = build_agent(model=args.model, conn=conn)
         prose_en = build_prose_agent(lang="en", model=args.prose_model)
         prose_ru = build_prose_agent(lang="ru", model=args.prose_model)
-        rows = asyncio.run(run_suite(stage1_agent, prose_en, conn, questions, args.runs, "en"))
-        rows += asyncio.run(run_suite(stage1_agent, prose_ru, conn, ru_questions, args.runs, "ru"))
-        rows += asyncio.run(run_cross(stage1_agent, prose_en, prose_ru, conn, cross, args.runs))
+        rows = asyncio.run(
+            run_suite(stage1_agent, prose_en, conn, questions, args.runs, "en", args.prose_model)
+        )
+        rows += asyncio.run(
+            run_suite(stage1_agent, prose_ru, conn, ru_questions, args.runs, "ru", args.prose_model)
+        )
+        rows += asyncio.run(
+            run_cross(stage1_agent, prose_en, prose_ru, conn, cross, args.runs, args.prose_model)
+        )
     report(rows, verbose=args.verbose)
 
 
