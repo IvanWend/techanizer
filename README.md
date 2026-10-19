@@ -86,17 +86,26 @@ it deters scripts and stray API clients, not a determined reader of the JS. It i
 per-user auth.
 
 Retention is keep-everything — nothing is purged. Re-snapshot before any schema change or
-re-extraction you care about (snapshots are the eval baseline), to a new date-stamped file, never
-in place. `evals/snapshots/2026-08-12_raw.dump` is the current one.
+re-extraction you care about, to a new date-stamped file, never in place. Two baselines live in
+`evals/snapshots/`:
+
+- `2026-08-12_raw.dump` — raw postings only.
+- `2026-10-19_structured.dump` — raw + structured + embeddings; this is what `jobmarket_eval` is
+  restored from.
 
 ```bash
+# raw corpus only
 docker exec job-market-agent-db-1 pg_dump -U jobmarket -d jobmarket \
   -Fc -Z9 -t raw_postings > evals/snapshots/$(date +%F)_raw.dump
+
+# full structured baseline (raw + structured + embeddings)
+docker exec job-market-agent-db-1 pg_dump -U jobmarket -d jobmarket \
+  -Fc -Z9 > evals/snapshots/$(date +%F)_structured.dump
 ```
 
-Evals use that dump restored into `jobmarket_eval`, reached as `jobmarket_ro` via
-`EVAL_DATABASE_URL`. Rebuild the gold-set candidate pool with
-`uv run python -m evals.generate_gold_dataset` (output is git-ignored).
+Evals restore the structured dump into `jobmarket_eval` (fresh DB, flip `db_meta.role` to `'eval'`,
+re-grant `jobmarket_ro` SELECT), reached as `jobmarket_ro` via `EVAL_DATABASE_URL`. Rebuild the
+gold-set candidate pool with `uv run python -m evals.generate_gold_dataset` (output is git-ignored).
 
 Toolchain gate, before any commit:
 
