@@ -13,6 +13,7 @@ from pydantic_ai import (
 )
 
 from jobmarket_agent.agent.schema import Answer, Quote, Table
+from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.app import app, create_app
 from jobmarket_agent.serving.sse import sse_event, stream_answer
 
@@ -138,10 +139,23 @@ def test_health() -> None:
 
 def test_ask_requires_query() -> None:
     # Both requests 422 in validation, before the handler opens a DB
-    # connection or builds the model, so the suite stays offline.
-    with TestClient(app) as client:
+    # connection or builds the model, so the suite stays offline. A keyless app
+    # keeps the assertion independent of any local ASK_API_KEY.
+    with TestClient(create_app(api_key=ApiKey(None))) as client:
         assert client.get("/ask").status_code == 422
         assert client.post("/ask", json={}).status_code == 422
+
+
+def test_ask_requires_key() -> None:
+    with TestClient(create_app(api_key=ApiKey("secret"))) as client:
+        # Missing and wrong keys 401 before the handler runs (offline-safe).
+        assert client.post("/ask", json={"question": "hi"}).status_code == 401
+        wrong = {"Authorization": "Bearer wrong"}
+        assert client.post("/ask", json={"question": "hi"}, headers=wrong).status_code == 401
+        # A valid key passes auth and reaches validation — still 422, no DB.
+        ok = {"Authorization": "Bearer secret"}
+        assert client.post("/ask", json={}, headers=ok).status_code == 422
+        assert client.get("/ask", headers=ok).status_code == 422
 
 
 def test_frontend_mounted_only_when_dist_exists(tmp_path, monkeypatch) -> None:

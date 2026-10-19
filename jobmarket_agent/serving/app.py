@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from jobmarket_agent.agent.loop import build_agent
+from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.rate_limit import RateLimiter
 from jobmarket_agent.serving.sse import sse_event, stream_answer
 
@@ -52,23 +53,29 @@ async def _stream(question: str) -> AsyncIterator[str]:
             await to_thread.run_sync(conn.close)
 
 
-def create_app(rate_limiter: RateLimiter | None = None) -> FastAPI:
+def create_app(
+    rate_limiter: RateLimiter | None = None,
+    api_key: ApiKey | None = None,
+) -> FastAPI:
     if rate_limiter is None:
         rate_limiter = RateLimiter(
             max_requests=_int("RATE_LIMIT_MAX", 30),
             window_seconds=_int("RATE_LIMIT_WINDOW_SECONDS", 60),
         )
+    # Unset ASK_API_KEY keeps /ask open (dev + CI); set it to gate the endpoint.
+    if api_key is None:
+        api_key = ApiKey(os.environ.get("ASK_API_KEY") or None)
     app = FastAPI()
 
     @app.get("/health")
     def health():
         return {"status": "ok"}
 
-    @app.get("/ask", dependencies=[Depends(rate_limiter)])
+    @app.get("/ask", dependencies=[Depends(rate_limiter), Depends(api_key)])
     def ask_get(q: str):
         return StreamingResponse(_stream(q), media_type="text/event-stream")
 
-    @app.post("/ask", dependencies=[Depends(rate_limiter)])
+    @app.post("/ask", dependencies=[Depends(rate_limiter), Depends(api_key)])
     def ask_post(request: AskRequest):
         return StreamingResponse(_stream(request.question), media_type="text/event-stream")
 

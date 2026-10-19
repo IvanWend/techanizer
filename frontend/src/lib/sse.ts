@@ -32,9 +32,15 @@ export async function streamAnswer(
   onEvent: (e: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
+  // The shared /ask key, when the server has one set. Sent from the build's
+  // env (VITE_ASK_API_KEY); absent in dev, where /ask is open.
+  const apiKey: string | undefined = import.meta.env.VITE_ASK_API_KEY
   const response = await fetch("/ask", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    },
     body: JSON.stringify({ question }),
     signal, // cancels the request when the caller aborts
   })
