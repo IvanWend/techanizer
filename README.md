@@ -12,6 +12,7 @@ INGESTION    HN (Algolia) + Remotive + Web3.career + Habr Career ──►  raw_
 RETENTION    keep-everything; 90-day window is a query-time filter only
 EXTRACTION   LLM + Pydantic schema, grounded by verbatim quotes ──►  structured_postings
 STORAGE      Postgres + pgvector; local bge-m3 embeddings (1024-dim) ──►  posting_embeddings
+SCHEDULER    weekly load → extract → embed (ops/scheduler.py), logged to ingestion_runs
 AGENT        DeepSeek tool-calling loop: sql_query · vector_search · role_detail
 MCP          same three tools over stdio — no DeepSeek key
 SERVING      FastAPI (SSE streaming) · Langfuse tracing
@@ -68,6 +69,7 @@ on the host.
 uv run python -m jobmarket_agent.ingestion.load
 uv run python -m jobmarket_agent.extraction.pipeline
 uv run python -m jobmarket_agent.storage.embed              # needs Ollama at OLLAMA_BASE_URL
+uv run python -m jobmarket_agent.ops.scheduler            # the three above, as one weekly run
 uv run python -m jobmarket_agent.agent.loop -q "what skills show up most for senior backend roles?"
 uv run uvicorn jobmarket_agent.serving.app:app
 uv run python -m jobmarket_agent.mcp.server             # stdio; silence means it is waiting
@@ -162,13 +164,14 @@ pyproject.toml         # deps (uv) + ruff/mypy/pytest; uv.lock is committed
 .env.example           # key names only; .env is git-ignored
 docker-compose.yml     # Postgres 17 + pgvector; ./init mounted for first boot
 init/                  # first-boot only — vector + pg_trgm
-db/schema/             # re-runnable DDL, 001–011
+db/schema/             # re-runnable DDL, 001–012
 jobmarket_agent/
   ingestion/           # four board clients, load, purge
   extraction/          # schema, transform, pipeline
   storage/             # embed, vector search, analytics
   agent/               # DeepSeek tool-calling loop
   mcp/                 # FastMCP stdio server, same three tools
+  ops/                 # weekly scheduler entrypoint + ingestion_runs run-log
   serving/             # FastAPI + SSE
 frontend/             # React + Vite + Tailwind SPA (builds to dist/, served by FastAPI)
 tests/
