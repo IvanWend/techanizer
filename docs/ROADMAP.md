@@ -10,9 +10,11 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - **Production labor-market analyzer** (query box + monthly report + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
-- **PLAN steps 1–3 done:** structured answer contract; retention keep-everything + 90-day window
+- **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
   (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
-  skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key.
+  skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
+  (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
+  trend aggregates (`monthly_skill_frequency` / `monthly_salary`).
 
 ## Phase 1 — Ingestion
 
@@ -60,7 +62,8 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [x] Fresh ingest + extract right before deploy (demo freshness)
 - [ ] Deployment — single VPS + docker-compose (`web` + `ollama`); provider + budget TBD;
       run the agent eval before/after the provider/model swap
-- [ ] Scheduled re-ingestion — weekly cron (PLAN step 4)
+- [x] Scheduled re-ingestion entrypoint — `ops/scheduler.py` (`load → extract → embed`) +
+      `ingestion_runs` run-log (PLAN step 4); the cron/timer line is a step-7 deploy concern
 
 ## Phase 6 — Polish
 
@@ -70,4 +73,5 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. Follow `docs/PLAN.md` build order, step 4: scheduler + run-log + live monthly aggregates.
+1. Follow `docs/PLAN.md` build order, step 5: RU-model A/B + placeholder fidelity + same-tables
+   grader + stage-2 prose locales.
