@@ -15,6 +15,7 @@
 // splitting on a blank line is safe.
 
 import type { Answer } from './types'
+import type { Lang } from './i18n'
 
 // A discriminated union: `event` tells us which shape `data` has. The render
 // layer matches on `event` to narrow the type. `tool_call` is name-only — it
@@ -29,6 +30,7 @@ export type StreamEvent =
 // Resolves when the stream ends; rejects on a non-2xx response or an abort.
 export async function streamAnswer(
   question: string,
+  lang: Lang,
   onEvent: (e: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
@@ -41,7 +43,7 @@ export async function streamAnswer(
       "Content-Type": "application/json",
       ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, lang }),
     signal, // cancels the request when the caller aborts
   })
 

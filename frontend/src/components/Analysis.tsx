@@ -57,7 +57,7 @@ export function Analysis({ lang }: { lang: Lang }) {
 
     const controller = new AbortController()
     controllerRef.current = controller
-    streamAnswer(text, handleEvent, controller.signal).catch((err) => {
+    streamAnswer(text, lang, handleEvent, controller.signal).catch((err) => {
       if (controller.signal.aborted) return // cancel is a stop, not an error
       setError(err instanceof Error ? err.message : String(err))
       setStatus(null)
