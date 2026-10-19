@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from datetime import date
 from typing import NamedTuple
 
 import psycopg
@@ -42,6 +43,20 @@ class TopSalary(NamedTuple):
     salary_min: int | None
     salary_max: int | None
     salary_currency: str | None
+
+
+class MonthSkill(NamedTuple):
+    month: date
+    skill: str
+    roles: int
+    postings: int
+
+
+class MonthSalary(NamedTuple):
+    month: date
+    currency: str | None
+    n: int
+    median_max_monthly: int | None
 
 
 # The live-agent window (retention.WINDOW_DAYS), applied only when db_meta.role is
@@ -114,6 +129,34 @@ WHERE (s.salary_max IS NOT NULL OR s.salary_min IS NOT NULL)
   AND {WINDOW_SQL}
 """
 
+# Trend aggregates read full history — no WINDOW_SQL, no db_meta gate. They
+# replace the monthly rollup tables dropped in 011: the monthly report's trend
+# half buckets straight off the source rows, so every month that ever existed
+# is visible, not just the live-agent window.
+MONTHLY_SKILL_SQL = """
+SELECT date_trunc('month', r.posted_at)::date AS month,
+       unnest(s.stack) AS skill,
+       count(*) AS roles,
+       count(DISTINCT s.raw_posting_id) AS postings
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+GROUP BY 1, 2
+ORDER BY month, roles DESC, skill
+"""
+
+MONTHLY_SALARY_SQL = """
+SELECT date_trunc('month', r.posted_at)::date AS month,
+       s.salary_currency,
+       count(*) AS n,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY s.salary_max)
+           FILTER (WHERE s.salary_currency IS NOT NULL)::int AS median_max_monthly
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE s.salary_max IS NOT NULL
+GROUP BY 1, 2
+ORDER BY month, n DESC, s.salary_currency
+"""
+
 
 def skill_frequency(conn, limit: int = 20) -> list[SkillCount]:
     with conn.cursor() as cur:
@@ -151,6 +194,18 @@ def top_salaries(conn, currency: str = "USD", limit: int = 10) -> list[TopSalary
         cur.execute(TOP_SALARIES_SQL, {"currency": currency, "days": WINDOW_DAYS})
         rows = [TopSalary(*row) for row in cur.fetchall()]
     return rank_top_salaries(rows, limit)
+
+
+def monthly_skill_frequency(conn) -> list[MonthSkill]:
+    with conn.cursor() as cur:
+        cur.execute(MONTHLY_SKILL_SQL)
+        return [MonthSkill(*row) for row in cur.fetchall()]
+
+
+def monthly_salary(conn) -> list[MonthSalary]:
+    with conn.cursor() as cur:
+        cur.execute(MONTHLY_SALARY_SQL)
+        return [MonthSalary(*row) for row in cur.fetchall()]
 
 
 def parse_args() -> argparse.Namespace:
