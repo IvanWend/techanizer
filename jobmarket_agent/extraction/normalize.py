@@ -171,16 +171,19 @@ STACK_STOPLIST = frozenset({
     "разработка программного обеспечения",
 })  # fmt: skip
 
-# Keys are post-fold, post-casefold.
+# Keys are post-casefold, post-homoglyph-fold; separator choice is free (the
+# lookup folds them). Values are the canonical ids.
 STACK_ALIASES: dict[str, str] = {
     "postgresql": "postgres", "psql": "postgres", "postgre": "postgres",
+    "postgesql": "postgres", "postgress": "postgres",  # corpus typos
     "k8s": "kubernetes", "golang": "go", "node": "nodejs", "node.js": "nodejs",
     "js": "javascript", "ts": "typescript", "py": "python",
     "c#": "csharp", "c++": "cpp", "objective-c": "objc",
     "amazon web services": "aws", "google cloud": "gcp",
     "google cloud platform": "gcp", "microsoft azure": "azure",
     "react.js": "react", "reactjs": "react", "vue.js": "vue", "vuejs": "vue",
-    "next.js": "nextjs", "rest": "rest-api", "restful": "rest-api",
+    "next.js": "nextjs", "rest": "rest-api", "restful": "rest-api", "restapi": "rest-api",
+    "oauth2": "oauth",
     "ci/cd": "ci-cd", "cicd": "ci-cd",
     "java spring framework": "spring", "spring boot": "spring",
     "oracle pl/sql": "plsql", "pl/sql": "plsql",
@@ -189,6 +192,32 @@ STACK_ALIASES: dict[str, str] = {
 
 # `1С` appears with a Cyrillic С in 33 corpus rows and a Latin C in 48.
 _LOOKALIKES = str.maketrans("АВЕКМНОРСТУХаеорсух", "ABEKMHOPCTYXaeopcyx")
+
+# --- skill alias v2 (PLAN step 3) -------------------------------------------
+# Version tokens and separator choice each fragment one skill into many: "java
+# 17+", "java 11" and "java" are the same skill, and so are "rest api",
+# "rest_api" and "rest-api". v2 strips a trailing version token and folds
+# whitespace/underscore/hyphen runs to one hyphen. Slash and dot stay literal: a
+# slash is ambiguous ("ci/cd" is one skill, "docker/k8s" is two) and a dot
+# anchors node.js/react.js.
+
+# Trailing version token: "17", "17+", "3.10+", "10/11", "8.x". Anchored to the
+# end and gated on the leading space, so "ec2", "html5", "c++23", "g.729" are
+# never stripped.
+_VERSION_SUFFIX = re.compile(r"\s+\d+(?:[.+/]\d+)*(?:\.x)?\+?$")
+
+# Runs of whitespace, underscore or hyphen collapse to a single hyphen.
+_SEPARATOR_RUN = re.compile(r"[\s_-]+")
+
+
+def _fold(key: str) -> str:
+    return _SEPARATOR_RUN.sub("-", key).strip("-")
+
+
+# Stoplist and alias keys are folded once so the lookup sees the same canonical
+# form as the input — whoever adds a key can write it with any separator.
+_STOPLIST = frozenset(_fold(k) for k in STACK_STOPLIST)
+_ALIASES = {_fold(k): v for k, v in STACK_ALIASES.items()}
 
 
 def html_to_text(html: str | None) -> str:
@@ -370,10 +399,12 @@ def alias(item: str | None) -> str | None:
         return None
 
     key = _HORIZONTAL_WS.sub(" ", fold_homoglyphs(cleaned)).strip().casefold()
-    if key in STACK_STOPLIST:
+    key = _VERSION_SUFFIX.sub("", key)
+    key = _fold(key)
+    if key in _STOPLIST:
         return None
-    if key in STACK_ALIASES:
-        return STACK_ALIASES[key]
+    if key in _ALIASES:
+        return _ALIASES[key]
     # Habr's Cyrillic skills are process/domain, not stack. Anything Cyrillic
     # worth keeping is mapped above.
     if _CYRILLIC.search(key):

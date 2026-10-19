@@ -222,6 +222,32 @@ def test_fold_homoglyphs(raw: str, expected: str) -> None:
         ("Waterfall", "waterfall"),
         # Stoplisted as a phrase: "lead" alone does not match the web3 tag.
         ("team lead", None),
+        # Skill alias v2 (PLAN step 3) — version tokens are stripped.
+        ("Java 17+", "java"),
+        ("python 3.10+", "python"),
+        ("next.js 16", "nextjs"),
+        ("OAuth 2.0", "oauth"),
+        ("windows 10/11", "windows"),
+        # Separator fold: whitespace/underscore/hyphen all collapse to "-".
+        ("REST API", "rest-api"),
+        ("rest_api", "rest-api"),
+        ("react native", "react-native"),
+        ("claude code", "claude-code"),
+        ("GitHub Actions", "github-actions"),
+        ("gitlab ci", "gitlab-ci"),
+        # Typo tolerance — corpus-grounded misspellings and no-separator forms.
+        ("postgesql", "postgres"),
+        ("postgress", "postgres"),
+        ("oauth2", "oauth"),
+        ("restapi", "rest-api"),
+        # Space-gate leaves no-space tokens alone; slash is left literal (a slash
+        # is ambiguous — "ci/cd" is one skill, "docker/k8s" is two).
+        ("c4", "c4"),
+        ("ec2", "ec2"),
+        ("html5", "html5"),
+        ("docker/k8s", "docker/k8s"),
+        ("tcp/ip", "tcp/ip"),
+        ("c++23", "c++23"),
     ],
 )
 def test_alias(raw: str | None, expected: str | None) -> None:
@@ -241,6 +267,8 @@ def test_alias(raw: str | None, expected: str | None) -> None:
         ),
         # Aliasing collapses variants, and insertion order is preserved.
         (["Golang", "go", "golang", "postgresql", "postgres"], ["go", "postgres"]),
+        # v2 collapses version + separator variants into one canonical too.
+        (["Java 17+", "java", "REST api", "rest-api"], ["java", "rest-api"]),
         (["Java", None, "", "Java"], ["java"]),
         ([], []),
     ],
