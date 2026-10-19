@@ -15,6 +15,11 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
   (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
   trend aggregates (`monthly_skill_frequency` / `monthly_salary`).
+- **PLAN step 5 done (minus the A/B run):** two-stage agent — stage 1 tool-calling → language-neutral
+  `Payload` (`TableSpec` + `Quote` + `Fact`), stage 2 per-locale prose (`Prose`, numbers only as
+  `{placeholders}`, code fills locale-formatted); code-owned table labels (`agent/locale.py`);
+  `/ask` carries `lang`; RU eval set (`r1`…`ri1`) + same-tables cross grader (`x2`). The
+  DeepSeek-vs-RU-model A/B run is pending a chosen RU model/key.
 
 ## Phase 1 — Ingestion
 
@@ -73,5 +78,6 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. Follow `docs/PLAN.md` build order, step 5: RU-model A/B + placeholder fidelity + same-tables
-   grader + stage-2 prose locales.
+1. Run the step-5 tail: pick a RU model + key, run the RU set under DeepSeek (baseline) then
+   under `--prose-model <RU model>`, record the winner. Then follow `docs/PLAN.md` step 6:
+   monthly report job (numeric payload → prose, both locales, stored).
