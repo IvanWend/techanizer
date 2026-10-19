@@ -1,7 +1,8 @@
-# Plan — production labor-market analyzer
+# Plan — Techanizer tech job-market analyzer
 
-**Goal.** Turn the portfolio demo into a production-grade labor-market analyzer:
-query box → agent answer (tables + verbatim quotes) → monthly report → RU/EN → deployed demo.
+**Goal.** Turn the portfolio demo into a production-grade Techanizer market analyzer:
+corpus query → structured analysis with tables and verbatim quotes → monthly market analysis
+→ RU/EN → deployed demo.
 Built on the current stack (Postgres 17 + pgvector, pydantic-ai, FastAPI + SSE, React/Vite),
 no rewrite.
 
@@ -11,7 +12,7 @@ ROADMAP.md.
 ## Product scope (what ships)
 
 - **Query box.** Agent answers with a typed payload rendered by the UI — not free markdown.
-- **Monthly report.** Fixed analyses, generated as prose, stored, shown in both languages.
+- **Monthly analysis.** Fixed corpus analyses, generated as prose, stored, and shown in both languages.
 - **RU/EN.** UI chrome, prose and tables fully localized.
 - **Deployed demo.** Single VPS, docker-compose.
 
@@ -101,7 +102,7 @@ ROADMAP.md.
   flaky `x3`).
 
 ### Ops
-- Weekly re-ingestion (`load → extract → embed`) + monthly report job.
+- Weekly re-ingestion (`load → extract → embed`) + monthly market analysis job.
 - Run-log table (per source: start, end, rows, errors).
 - HN loader ingests **all** in-window threads (not just the latest).
 
@@ -120,10 +121,11 @@ retry loop, `currency_enum` rework (already a strict whitelist).
 | 3 | Skill alias v2 + `/ask` API key | 13–17 |
 | 4 | Scheduler + run-log + live monthly aggregates (remove rollups/purge) | 18–21 |
 | 5 | RU-model A/B + placeholder fidelity + same-tables grader + stage-2 prose locales | 22–27 |
-| 6 | Monthly report job (numeric payload → prose, both locales, stored) | 28–34 |
+| 6 | Monthly market analysis job (numeric payload → prose, both locales, stored) | 28–34 |
 | 7 | Deploy + README (results table + architecture + known limitations) + slides | 35–42 |
+| 8 | Techanizer naming refactor across package metadata, CLI text, code comments, and docs; keep database identifiers stable | follow-up |
 
-**Cut first if time slips:** monthly report *trend* half → scheduler → RU second model (DeepSeek
+**Cut first if time slips:** monthly analysis *trend* half → scheduler → RU second model (DeepSeek
 prose both locales).
 
 **Never cut:** retention migration + window filters, skill aliases, structured answer, `/ask` API key.

@@ -1,8 +1,8 @@
-# Remote Job Search Agent
+# Techanizer
 
-An applied-AI service for analyzing remote technology vacancies from four legally
-accessible sources: Hacker News *Who Is Hiring*, Remotive, Web3.career, and Habr
-Career.
+Techanizer is an applied-AI tech job-market agent. It analyzes a corpus of remote
+technology vacancies from four legally accessible sources: Hacker News *Who Is
+Hiring*, Remotive, Web3.career, and Habr Career.
 
 It turns inconsistent English- and Russian-language postings into structured,
 searchable data and answers questions such as:
@@ -14,7 +14,9 @@ searchable data and answers questions such as:
 
 This is a production-oriented semester project for integrating AI into a real data
 pipeline. The source mix is intentionally heterogeneous; it is not intended to be
-a statistically representative model of the whole labor market.
+a statistically representative model of the whole labor market. Techanizer answers
+questions about the corpus and provides recurring monthly market analysis; the
+monthly analysis implementation is still planned.
 
 ## What is implemented
 
@@ -54,7 +56,7 @@ Postgres raw postings ──► LLM extraction with Pydantic validation
   frontend lint, and production build.
 - Agent evaluation currently reports **59/60** on the maintained suite.
 - The Russian prose model A/B run is prepared but not yet recorded.
-- The monthly report tab is currently a designed placeholder; report generation
+- The monthly analysis tab is currently a designed placeholder; analysis generation
   and storage are not implemented yet.
 - VPS deployment with web and Ollama services is planned, but this repository is
   currently a local/self-hosted setup.
@@ -164,7 +166,7 @@ docs/                         roadmap, plan, and engineering decisions
 - Contact information in raw postings can be exposed through detailed record
   access; email redaction is intentionally out of scope.
 - Production deployment, automated backups, persistent monitoring, and the
-  monthly report are future work.
+  monthly analysis are future work.
 
 ## Validation
 

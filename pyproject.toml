@@ -8,7 +8,7 @@ packages = ["jobmarket_agent"]
 [project]
 name = "remote-job-search-agent"
 version = "0.1.0"
-description = "Remote-job-search intelligence agent: ingest postings, LLM structured extraction, Postgres + pgvector, DeepSeek agent."
+description = "Techanizer: intelligent tech job-market analysis agent with LLM extraction, Postgres, pgvector, and DeepSeek."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

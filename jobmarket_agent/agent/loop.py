@@ -122,7 +122,7 @@ async def compose(
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Pydantic AI DeepSeek Data Assistant Loop")
+    parser = argparse.ArgumentParser(description="Techanizer tech job-market analysis agent")
     parser.add_argument(
         "--question",
         "-q",

@@ -1,13 +1,13 @@
 # Roadmap
 
-A **remote job search agent over heterogeneous boards.**
+A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources.**
 
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Current state (2026-10-19)
 
-- **Production labor-market analyzer** (query box + monthly report + RU/EN + deployed demo).
+- **Techanizer market analyzer** (corpus queries + monthly analysis + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
 - **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
@@ -18,8 +18,9 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - **PLAN step 5 done (minus the A/B run):** two-stage agent — stage 1 tool-calling → language-neutral
   `Payload` (`TableSpec` + `Quote` + `Fact`), stage 2 per-locale prose (`Prose`, numbers only as
   `{placeholders}`, code fills locale-formatted); code-owned table labels (`agent/locale.py`);
-  `/ask` carries `lang`; RU eval set (`r1`…`ri1`) + same-tables cross grader (`x2`). The
-  DeepSeek-vs-RU-model A/B run is pending a chosen RU model/key.
+  `/ask` carries `lang`; RU eval set (`r1`…`ri1`) + same-tables cross grader (`x2`). Kimi is wired
+  in as the RU-prose candidate (`--prose-model moonshotai:kimi-k3`, China base URL + no
+  `temperature=0`); the DeepSeek-vs-Kimi A/B run itself is still to execute.
 
 ## Phase 1 — Ingestion
 
@@ -75,9 +76,24 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [ ] README with architecture diagram, eval-results table, Known limitations, demo GIF
 - [ ] Cross-source dedup (fuzzy company+title) + trend charts
 - [ ] Hand-roll the validate-and-retry loop to see what `pydantic-ai` hides (see DECISIONS)
+- [ ] **Refactor product naming:** rename the remaining `remote-job-search` / job-search
+      terminology in package metadata, CLI help, module comments, and documentation to
+      Techanizer and tech job-market analysis; preserve database/table identifiers where a
+      migration would add risk.
 
 ## Next
 
-1. Run the step-5 tail: pick a RU model + key, run the RU set under DeepSeek (baseline) then
-   under `--prose-model <RU model>`, record the winner. Then follow `docs/PLAN.md` step 6:
-   monthly report job (numeric payload → prose, both locales, stored).
+1. **Run the RU-prose A/B (DeepSeek baseline vs Kimi).** Needs `DEEPSEEK_API_KEY` + `KIMI_API_KEY`
+   and `EVAL_DATABASE_URL` (the frozen snapshot) in `.env`. Run from the repo root:
+
+   ```bash
+   # baseline — DeepSeek is the fallback, so this is the number to beat
+   uv run python -m evals.eval_agent --runs 3
+
+   # candidate — Kimi as the stage-2 prose model
+   uv run python -m evals.eval_agent --runs 3 --prose-model moonshotai:kimi-k3
+   ```
+
+   Record the per-kind pass rates; if Kimi is equal-or-better on the RU set, adopt it as the RU
+   prose model (DeepSeek stays fallback). Then `docs/PLAN.md` step 6: monthly market analysis job
+   (numeric payload → prose, both locales, stored).
