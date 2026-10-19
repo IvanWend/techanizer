@@ -102,7 +102,12 @@ export function makeHighlightPlugin(terms: string[]): () => (tree: HastNode) => 
     ),
   )
   const ciVariants = raw
-    .flatMap((t) => [t, ...(SURFACE_CI[t] ?? [])])
+    .flatMap((t) => {
+      // Hyphenated canonicals ("react-native") are written with a space in
+      // prose ("React Native"), so emit the space-joined form too.
+      const spaced = t.includes('-') ? t.replaceAll('-', ' ') : null
+      return [t, ...(SURFACE_CI[t] ?? []), ...(spaced ? [spaced] : [])]
+    })
     .filter((v) => v.length >= 3)
   const csVariants = raw.flatMap((t) => SURFACE_CS[t] ?? [])
 
