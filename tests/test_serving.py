@@ -12,7 +12,8 @@ from pydantic_ai import (
     FunctionToolCallEvent,
 )
 
-from jobmarket_agent.agent.schema import Answer, Quote, Table
+from jobmarket_agent.agent.locale import Lang
+from jobmarket_agent.agent.schema import Answer, Payload, Prose, Quote, Table, TableSpec
 from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.app import app, create_app
 from jobmarket_agent.serving.sse import sse_event, stream_answer
@@ -20,10 +21,31 @@ from jobmarket_agent.serving.sse import sse_event, stream_answer
 # Payload values come from the corpus, not invention: gold_40_candidates.json
 # row 1 (hn 48747990, "We The Flywheel") is the posting DECISIONS: schema cites
 # for the Agentic Engineer role and its claude code / cursor / aider stack.
-_ANSWER = Answer(
-    headline="Agentic Engineer roles at We The Flywheel lean on claude code, cursor and aider.",
+_PAYLOAD = Payload(
+    tables=[TableSpec(kind="bars", source="skill_frequency", rows=[["claude code", 30]])],
+    quotes=[
+        Quote(
+            id=1,
+            company="We The Flywheel",
+            title="Agentic Engineer",
+            source="hn",
+            text="ship real software with AI coding agents",
+        )
+    ],
+    facts=[],
+)
+
+_PROSE = Prose(
+    headline="Agentic Engineer roles at We The Flywheel lean on claude code.",
     key_finding="The strongest signal is claude code [1].",
-    tables=[Table(kind="bars", title="Skill frequency", rows=[["claude code", 30]])],
+)
+
+# The frame stream_answer ships after stage 2 + assemble: prose filled (nothing
+# to fill here — no facts), labels attached from the source.
+_EXPECTED_ANSWER = Answer(
+    headline="Agentic Engineer roles at We The Flywheel lean on claude code.",
+    key_finding="The strongest signal is claude code [1].",
+    tables=[Table(kind="bars", title="Most-common skills", headers=[], rows=[["claude code", 30]])],
     quotes=[
         Quote(
             id=1,
@@ -71,12 +93,12 @@ class _StubEvents:
             raise self._exc
 
 
-class _StubAgent:
+class _StubStage1Agent:
     # Only the Agent surface stream_answer touches: async CM + run_stream_events.
     def __init__(self, events: list[object], exc: Exception | None = None) -> None:
         self._events = _StubEvents(events, exc)
 
-    async def __aenter__(self) -> "_StubAgent":
+    async def __aenter__(self) -> "_StubStage1Agent":
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:
@@ -92,12 +114,30 @@ class _StubAgent:
         return self._events
 
 
-def _collect(agent: object, question: str) -> list[str]:
+class _StubProseAgent:
+    # stream_answer calls run_prose -> prose_agent.run(json, model_settings=...).
+    def __init__(self, prose: Prose | None = None) -> None:
+        self._prose = prose if prose is not None else _PROSE
+
+    async def run(
+        self,
+        _prompt: str,
+        *,
+        model_settings: object | None = None,
+        usage_limits: object | None = None,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(output=self._prose)
+
+
+def _collect(
+    stage1_agent: _StubStage1Agent, prose_agent: _StubProseAgent, question: str, lang: Lang = "en"
+) -> list[str]:
     # stream_answer is async but the repo has no pytest-asyncio; drain it with
     # asyncio.run inside a sync test instead.
     async def run() -> list[str]:
-        typed = cast(Agent[None, Answer], agent)
-        return [frame async for frame in stream_answer(typed, question)]
+        s1 = cast(Agent[None, Payload], stage1_agent)
+        p = cast(Agent[None, Prose], prose_agent)
+        return [frame async for frame in stream_answer(s1, p, question, lang)]
 
     return asyncio.run(run())
 
@@ -114,20 +154,20 @@ def test_stream_answer_maps_events_to_frames() -> None:
             part=cast(Any, SimpleNamespace(tool_name="vector_search")),
             args_valid=True,
         ),
-        AgentRunResultEvent(result=cast(Any, SimpleNamespace(output=_ANSWER))),
+        AgentRunResultEvent(result=cast(Any, SimpleNamespace(output=_PAYLOAD))),
     ]
 
-    frames = _collect(_StubAgent(events), "agentic engineer")
+    frames = _collect(_StubStage1Agent(events), _StubProseAgent(), "agentic engineer")
     assert len(frames) == 2
     # tool_call is name-only (status line); the tool's output never crosses the wire.
     assert frames[0] == 'event: tool_call\ndata: {"name": "vector_search"}\n\n'
-    # The answer frame is the whole contract, not hand-picked fields.
-    assert _frame_data(frames[1]) == _ANSWER.model_dump(mode="json")
+    # The answer frame is the assembled contract (prose filled, labels attached).
+    assert _frame_data(frames[1]) == _EXPECTED_ANSWER.model_dump(mode="json")
 
 
 def test_stream_answer_emits_error_frame() -> None:
-    stub = _StubAgent([], exc=RuntimeError("boom"))
-    assert _collect(stub, "q") == ['event: error\ndata: {"message": "boom"}\n\n']
+    stub = _StubStage1Agent([], exc=RuntimeError("boom"))
+    assert _collect(stub, _StubProseAgent(), "q") == ['event: error\ndata: {"message": "boom"}\n\n']
 
 
 def test_health() -> None:
@@ -156,6 +196,14 @@ def test_ask_requires_key() -> None:
         ok = {"Authorization": "Bearer secret"}
         assert client.post("/ask", json={}, headers=ok).status_code == 422
         assert client.get("/ask", headers=ok).status_code == 422
+
+
+def test_ask_rejects_invalid_lang() -> None:
+    # lang is a Literal; an out-of-set value 422s in validation, before the
+    # handler opens a DB connection or builds a model.
+    with TestClient(create_app(api_key=ApiKey(None))) as client:
+        assert client.get("/ask", params={"q": "hi", "lang": "xx"}).status_code == 422
+        assert client.post("/ask", json={"question": "hi", "lang": "xx"}).status_code == 422
 
 
 def test_frontend_mounted_only_when_dist_exists(tmp_path, monkeypatch) -> None:

@@ -9,18 +9,25 @@ from pydantic_ai import (
 from pydantic_ai.tool_manager import ToolManager
 
 from jobmarket_agent.agent.limits import model_settings, usage_limits
-from jobmarket_agent.agent.schema import Answer
+from jobmarket_agent.agent.locale import Lang
+from jobmarket_agent.agent.loop import assemble, run_prose
+from jobmarket_agent.agent.schema import Payload, Prose
 
 
 def sse_event(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-async def stream_answer(agent: Agent[None, Answer], question: str) -> AsyncIterator[str]:
+async def stream_answer(
+    stage1_agent: Agent[None, Payload],
+    prose_agent: Agent[None, Prose],
+    question: str,
+    lang: Lang,
+) -> AsyncIterator[str]:
     with ToolManager.parallel_execution_mode("sequential"):
-        async with agent:
+        async with stage1_agent:
             try:
-                async with agent.run_stream_events(
+                async with stage1_agent.run_stream_events(
                     question,
                     model_settings=model_settings(),
                     usage_limits=usage_limits(),
@@ -32,7 +39,13 @@ async def stream_answer(agent: Agent[None, Answer], question: str) -> AsyncItera
                             # answer actually depends on.
                             yield sse_event("tool_call", {"name": ev.part.tool_name})
                         elif isinstance(ev, AgentRunResultEvent):
-                            yield sse_event("answer", ev.result.output.model_dump(mode="json"))
+                            payload = ev.result.output
+                            if payload is None:
+                                yield sse_event("error", {"message": "no output"})
+                                return
+                            prose = await run_prose(payload, prose_agent)
+                            answer = assemble(payload, prose, lang)
+                            yield sse_event("answer", answer.model_dump(mode="json"))
             except Exception as e:
                 yield sse_event("error", {"message": str(e)})
                 return

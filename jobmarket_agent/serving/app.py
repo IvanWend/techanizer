@@ -10,7 +10,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from jobmarket_agent.agent.loop import build_agent
+from jobmarket_agent.agent.locale import Lang
+from jobmarket_agent.agent.loop import build_agent, build_prose_agent
 from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.rate_limit import RateLimiter
 from jobmarket_agent.serving.sse import sse_event, stream_answer
@@ -26,6 +27,7 @@ FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 class AskRequest(BaseModel):
     question: str
+    lang: Lang = "en"
 
 
 def _connect() -> psycopg.Connection:
@@ -39,12 +41,13 @@ def _int(name: str, default: int) -> int:
     return int(raw) if raw else default
 
 
-async def _stream(question: str) -> AsyncIterator[str]:
+async def _stream(question: str, lang: Lang) -> AsyncIterator[str]:
     conn: psycopg.Connection | None = None
     try:
         conn = await to_thread.run_sync(_connect)
-        agent = build_agent(conn=conn)
-        async for frame in stream_answer(agent, question):
+        stage1_agent = build_agent(conn=conn)
+        prose_agent = build_prose_agent(lang=lang)
+        async for frame in stream_answer(stage1_agent, prose_agent, question, lang):
             yield frame
     except Exception as e:
         yield sse_event("error", {"message": str(e)})
@@ -72,12 +75,14 @@ def create_app(
         return {"status": "ok"}
 
     @app.get("/ask", dependencies=[Depends(rate_limiter), Depends(api_key)])
-    def ask_get(q: str):
-        return StreamingResponse(_stream(q), media_type="text/event-stream")
+    def ask_get(q: str, lang: Lang = "en"):
+        return StreamingResponse(_stream(q, lang), media_type="text/event-stream")
 
     @app.post("/ask", dependencies=[Depends(rate_limiter), Depends(api_key)])
     def ask_post(request: AskRequest):
-        return StreamingResponse(_stream(request.question), media_type="text/event-stream")
+        return StreamingResponse(
+            _stream(request.question, request.lang), media_type="text/event-stream"
+        )
 
     # Mounted last so /health, /ask and the docs routes win; StaticFiles(html=True)
     # serves index.html at "/" for the single-page chat UI. Absent dist/ -> no mount.
