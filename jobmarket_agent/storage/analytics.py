@@ -6,6 +6,8 @@ from typing import NamedTuple
 import psycopg
 from dotenv import load_dotenv
 
+from jobmarket_agent.ingestion.retention import WINDOW_DAYS
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -42,11 +44,22 @@ class TopSalary(NamedTuple):
     salary_currency: str | None
 
 
-SKILL_FREQUENCY_SQL = """
-SELECT unnest(stack) AS skill,
+# The live-agent window (retention.WINDOW_DAYS), applied only when db_meta.role is
+# 'live': the frozen eval snapshot serves its whole corpus as current, and its
+# role is 'eval'. A scalar subquery keeps the predicate self-contained per query
+# rather than a per-call role lookup in Python.
+WINDOW_SQL = (
+    "((SELECT role FROM db_meta) <> 'live' "
+    "OR r.posted_at >= now() - make_interval(days => %(days)s))"
+)
+
+SKILL_FREQUENCY_SQL = f"""
+SELECT unnest(s.stack) AS skill,
        count(*) AS roles,
-       count(DISTINCT raw_posting_id) AS postings
-FROM structured_postings
+       count(DISTINCT s.raw_posting_id) AS postings
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE {WINDOW_SQL}
 GROUP BY 1
 ORDER BY roles DESC, skill
 LIMIT %(limit)s
@@ -55,30 +68,34 @@ LIMIT %(limit)s
 # NULL currency is a mix of whatever currencies the source never stated, so a
 # median across it is neither currency. FILTER keeps the row (n = coverage)
 # while withholding a number that cannot mean anything.
-SALARY_BY_CURRENCY_SQL = """
-SELECT salary_currency,
+SALARY_BY_CURRENCY_SQL = f"""
+SELECT s.salary_currency,
        count(*) AS n,
-       percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_max)
-           FILTER (WHERE salary_currency IS NOT NULL)::int AS median_max_monthly
-FROM structured_postings
-WHERE salary_max IS NOT NULL
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY s.salary_max)
+           FILTER (WHERE s.salary_currency IS NOT NULL)::int AS median_max_monthly
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE s.salary_max IS NOT NULL
+  AND {WINDOW_SQL}
 GROUP BY 1
-ORDER BY n DESC, salary_currency
+ORDER BY n DESC, s.salary_currency
 """
 
 # The currency filter is not optional: percentile_cont over a mixed-currency
 # list returns a midpoint that is neither currency (mid = 49 RUB + 41 USD landed
 # at 80,500/mo, above senior's USD median). median_max ignores NULL salary_max,
 # so with_salary still shows coverage even though salary_max IS NOT NULL is absent.
-SALARY_BY_SENIORITY_SQL = """
-SELECT seniority,
+SALARY_BY_SENIORITY_SQL = f"""
+SELECT s.seniority,
        count(*) AS roles,
-       count(salary_max) AS with_salary,
-       percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_max)::int AS median_max_monthly
-FROM structured_postings
-WHERE salary_currency = %(currency)s
-GROUP BY seniority
-ORDER BY median_max_monthly DESC NULLS LAST, seniority
+       count(s.salary_max) AS with_salary,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY s.salary_max)::int AS median_max_monthly
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE s.salary_currency = %(currency)s
+  AND {WINDOW_SQL}
+GROUP BY s.seniority
+ORDER BY median_max_monthly DESC NULLS LAST, s.seniority
 """
 
 # The currency filter is not optional, same as the seniority split: a ranking
@@ -87,30 +104,32 @@ ORDER BY median_max_monthly DESC NULLS LAST, seniority
 # currency never matches, so those roles drop out — never impute one. The
 # ranking itself lives in rank_top_salaries, not the SQL, so it is unit-testable
 # without a database.
-TOP_SALARIES_SQL = """
-SELECT raw_posting_id, role_index, company, title, location, seniority,
-       salary_min, salary_max, salary_currency
-FROM structured_postings
-WHERE (salary_max IS NOT NULL OR salary_min IS NOT NULL)
-  AND salary_currency = %(currency)s
+TOP_SALARIES_SQL = f"""
+SELECT s.raw_posting_id, s.role_index, s.company, s.title, s.location, s.seniority,
+       s.salary_min, s.salary_max, s.salary_currency
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE (s.salary_max IS NOT NULL OR s.salary_min IS NOT NULL)
+  AND s.salary_currency = %(currency)s
+  AND {WINDOW_SQL}
 """
 
 
 def skill_frequency(conn, limit: int = 20) -> list[SkillCount]:
     with conn.cursor() as cur:
-        cur.execute(SKILL_FREQUENCY_SQL, {"limit": limit})
+        cur.execute(SKILL_FREQUENCY_SQL, {"limit": limit, "days": WINDOW_DAYS})
         return [SkillCount(*row) for row in cur.fetchall()]
 
 
 def salary_by_currency(conn) -> list[CurrencySalary]:
     with conn.cursor() as cur:
-        cur.execute(SALARY_BY_CURRENCY_SQL)
+        cur.execute(SALARY_BY_CURRENCY_SQL, {"days": WINDOW_DAYS})
         return [CurrencySalary(*row) for row in cur.fetchall()]
 
 
 def salary_by_seniority(conn, currency: str = "USD") -> list[SenioritySalary]:
     with conn.cursor() as cur:
-        cur.execute(SALARY_BY_SENIORITY_SQL, {"currency": currency})
+        cur.execute(SALARY_BY_SENIORITY_SQL, {"currency": currency, "days": WINDOW_DAYS})
         return [SenioritySalary(*row) for row in cur.fetchall()]
 
 
@@ -129,7 +148,7 @@ def rank_top_salaries(rows: list[TopSalary], limit: int = 10) -> list[TopSalary]
 
 def top_salaries(conn, currency: str = "USD", limit: int = 10) -> list[TopSalary]:
     with conn.cursor() as cur:
-        cur.execute(TOP_SALARIES_SQL, {"currency": currency})
+        cur.execute(TOP_SALARIES_SQL, {"currency": currency, "days": WINDOW_DAYS})
         rows = [TopSalary(*row) for row in cur.fetchall()]
     return rank_top_salaries(rows, limit)
 

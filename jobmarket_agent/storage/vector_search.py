@@ -7,6 +7,7 @@ from typing import NamedTuple
 import psycopg
 from dotenv import load_dotenv
 
+from jobmarket_agent.ingestion.retention import WINDOW_DAYS
 from jobmarket_agent.storage.embed import QUERY_INSTRUCTION, embed, to_vector_text
 
 load_dotenv()
@@ -33,12 +34,21 @@ class SearchHit(NamedTuple):
     similarity: float
 
 
+# The live-agent window (retention.WINDOW_DAYS), applied only when db_meta.role is
+# 'live': the frozen eval snapshot serves its whole corpus as current, and its
+# role is 'eval'. A scalar subquery keeps the predicate self-contained per query
+# rather than a per-call role lookup in Python.
+WINDOW_SQL = (
+    "((SELECT role FROM db_meta) <> 'live' "
+    "OR r.posted_at >= now() - make_interval(days => %(days)s))"
+)
+
 # Named params, not positional: the query vector appears twice (projection and
 # ORDER BY) and %(qvec)s binds it once. <=> carries the lowest operator
 # precedence in Postgres, so the distance expression is always parenthesised.
 # Optional filters are `IS NULL OR ... = ANY(%s)`, not dynamic SQL: psycopg3
 # adapts list[str] -> text[], and NULL::text[] makes an absent filter a no-op.
-SEARCH_SQL = """
+SEARCH_SQL = f"""
 SELECT s.raw_posting_id, s.role_index, s.title, s.company, s.location,
        s.seniority, s.remote_policy, s.employment_type, s.stack,
        s.salary_min, s.salary_max, s.salary_currency, s.description,
@@ -49,6 +59,7 @@ JOIN structured_postings s USING (raw_posting_id, role_index)
 JOIN raw_postings      r ON r.id = s.raw_posting_id
 WHERE (%(seniority)s::text[] IS NULL OR s.seniority = ANY(%(seniority)s))
   AND (%(remote)s::text[]    IS NULL OR s.remote_policy = ANY(%(remote)s))
+  AND {WINDOW_SQL}
 ORDER BY e.embedding <=> %(qvec)s::vector
 LIMIT %(limit)s
 """
@@ -69,7 +80,13 @@ def search(
     with conn.cursor() as cur:
         cur.execute(
             SEARCH_SQL,
-            {"qvec": qvec_text, "seniority": seniority, "remote": remote, "limit": limit},
+            {
+                "qvec": qvec_text,
+                "seniority": seniority,
+                "remote": remote,
+                "limit": limit,
+                "days": WINDOW_DAYS,
+            },
         )
         return [SearchHit(*row) for row in cur.fetchall()]
 

@@ -1,14 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
-# The rolling freshness window. Enforced in two places on purpose: purge.py
-# deletes what has aged out, load.py drops aged-out rows before they are ever
-# inserted. Age-purge alone means every run re-inserts the same expired
-# postings the boards still serve, which the next purge deletes again.
+# The rolling freshness window. With retention now keep-everything (011), the
+# window is enforced at two layers: load.py drops rows that are already aged-out
+# when first fetched, and the live agent scopes its queries to this window via
+# db_meta.role='live' (storage/analytics.py + vector_search.py).
 WINDOW_DAYS = 90
-
-# Cut as a live source (Phase 1b). Kept out of the schema CHECK too, but the
-# purge is what actually removes the rows already in the table.
-CUT_SOURCES = ("adzuna",)
 
 
 def window_cutoff(now: datetime | None = None) -> datetime:

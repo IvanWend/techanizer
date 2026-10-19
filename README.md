@@ -9,7 +9,7 @@ résumé"*.
 
 ```
 INGESTION    HN (Algolia) + Remotive + Web3.career + Habr Career ──►  raw_postings (Postgres)
-RETENTION    rolling 90-day window — filtered at ingest, purged on age
+RETENTION    keep-everything; 90-day window is a query-time filter only
 EXTRACTION   LLM + Pydantic schema, grounded by verbatim quotes ──►  structured_postings
 STORAGE      Postgres + pgvector; local bge-m3 embeddings (1024-dim) ──►  posting_embeddings
 AGENT        DeepSeek tool-calling loop: sql_query · vector_search · role_detail
@@ -18,9 +18,9 @@ SERVING      FastAPI (SSE streaming) · Langfuse tracing
 FRONTEND     React + Vite + Tailwind SPA, served from FastAPI StaticFiles
 ```
 
-Four boards, remote only. Corpus size is not the goal — postings older than 90 days are mostly
-filled. Schema and extraction rules live in `db/schema/` and `jobmarket_agent/extraction/`, not here. Status:
-[docs/ROADMAP.md](docs/ROADMAP.md).
+Four boards, remote only. Corpus size is not the goal — everything is kept, and the live agent only
+reads the last 90 days. Schema and extraction rules live in `db/schema/` and
+`jobmarket_agent/extraction/`, not here. Status: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech stack
 
@@ -66,11 +66,8 @@ on the host.
 
 ```bash
 uv run python -m jobmarket_agent.ingestion.load
-uv run python -m jobmarket_agent.ingestion.purge            # dry run
-uv run python -m jobmarket_agent.ingestion.purge --apply
 uv run python -m jobmarket_agent.extraction.pipeline
 uv run python -m jobmarket_agent.storage.embed              # needs Ollama at OLLAMA_BASE_URL
-uv run python -m jobmarket_agent.storage.rollups
 uv run python -m jobmarket_agent.agent.loop -q "what skills show up most for senior backend roles?"
 uv run uvicorn jobmarket_agent.serving.app:app
 uv run python -m jobmarket_agent.mcp.server             # stdio; silence means it is waiting
@@ -78,9 +75,9 @@ uv run python -m jobmarket_agent.mcp.server             # stdio; silence means i
 
 The first Habr ingest is slow (one HTML request per posting). Later runs fetch only new ids.
 
-**Snapshot before the first purge** on a corpus you care about. Deleted rows are not re-fetchable.
-Re-snapshot to a new date-stamped file, never in place. `evals/snapshots/2026-08-12_raw.dump` is the
-current one.
+Retention is keep-everything — nothing is purged. Re-snapshot before any schema change or
+re-extraction you care about (snapshots are the eval baseline), to a new date-stamped file, never
+in place. `evals/snapshots/2026-08-12_raw.dump` is the current one.
 
 ```bash
 docker exec job-market-agent-db-1 pg_dump -U jobmarket -d jobmarket \
@@ -150,7 +147,7 @@ db/schema/             # re-runnable DDL, 001–010
 jobmarket_agent/
   ingestion/           # four board clients, load, purge
   extraction/          # schema, transform, pipeline
-  storage/             # embed, vector search, analytics, rollups
+  storage/             # embed, vector search, analytics
   agent/               # DeepSeek tool-calling loop
   mcp/                 # FastMCP stdio server, same three tools
   serving/             # FastAPI + SSE
