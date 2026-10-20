@@ -21,9 +21,11 @@ from jobmarket_agent.agent.tools import make_role_detail, make_sql_query, make_v
 
 load_dotenv()
 
-DEFAULT_STAGE1_MODEL = "deepseek:deepseek-v4-flash"
-# Stage 2 writes prose by locale; DeepSeek is the fallback (PLAN: A/B a RU model).
-DEFAULT_STAGE2_MODEL = "deepseek:deepseek-v4-flash"
+DEFAULT_STAGE1_MODEL = "deepseek:deepseek-v4-pro"
+# Stage 2 writes prose by locale. RU uses Kimi (the A/B winner over DeepSeek);
+# DeepSeek is the EN prose model and the fallback.
+DEFAULT_STAGE2_MODEL = "deepseek:deepseek-v4-pro"
+DEFAULT_STAGE2_RU_MODEL = "moonshotai:kimi-k3"
 
 # The user's KIMI_API_KEY is a China key; pydantic-ai's MoonshotAI provider
 # hardcodes api.moonshot.ai and 401s on it, so a moonshotai:* model is resolved
@@ -65,11 +67,17 @@ def prose_model_settings(model: str) -> ModelSettings:
     return model_settings()
 
 
-def build_prose_agent(lang: Lang = "en", model: str = DEFAULT_STAGE2_MODEL) -> Agent[None, Prose]:
+def default_stage2_model(lang: Lang) -> str:
+    # RU prose is Kimi (the A/B winner over DeepSeek); EN prose and the fallback
+    # stay DeepSeek.
+    return DEFAULT_STAGE2_RU_MODEL if lang == "ru" else DEFAULT_STAGE2_MODEL
+
+
+def build_prose_agent(lang: Lang = "en", model: str | None = None) -> Agent[None, Prose]:
     # No tools: stage 2 only writes prose from the stage-1 payload. The payload is
     # passed as a JSON string prompt, matching how the judge runs (no typed deps).
     return Agent(
-        model=resolve_prose_model(model),
+        model=resolve_prose_model(model or default_stage2_model(lang)),
         system_prompt=prose_prompt(lang),
         output_type=Prose,
         defer_model_check=True,
@@ -85,9 +93,7 @@ async def ask(agent: Agent[None, Payload], question: str) -> AgentRunResult[Payl
         )
 
 
-async def run_prose(
-    payload: Payload, prose_agent: Agent[None, Prose], model: str = DEFAULT_STAGE2_MODEL
-) -> Prose:
+async def run_prose(payload: Payload, prose_agent: Agent[None, Prose], model: str) -> Prose:
     result = await prose_agent.run(
         json.dumps(payload.model_dump(mode="json"), ensure_ascii=False),
         model_settings=prose_model_settings(model),
@@ -116,9 +122,10 @@ async def compose(
     payload: Payload,
     lang: Lang,
     prose_agent: Agent[None, Prose],
-    model: str = DEFAULT_STAGE2_MODEL,
+    model: str | None = None,
 ) -> Answer:
-    return assemble(payload, await run_prose(payload, prose_agent, model), lang)
+    resolved = model or default_stage2_model(lang)
+    return assemble(payload, await run_prose(payload, prose_agent, resolved), lang)
 
 
 async def main() -> None:
@@ -140,8 +147,8 @@ async def main() -> None:
     parser.add_argument(
         "--prose-model",
         type=str,
-        default=DEFAULT_STAGE2_MODEL,
-        help="The stage-2 (prose) model string.",
+        default=None,
+        help="Override the stage-2 prose model (defaults per locale: RU Kimi, EN DeepSeek).",
     )
     parser.add_argument(
         "--lang",

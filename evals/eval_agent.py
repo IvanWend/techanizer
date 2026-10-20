@@ -16,7 +16,7 @@ from pydantic_ai.providers.moonshotai import MoonshotAIProvider
 from pydantic_ai.settings import ModelSettings
 
 from jobmarket_agent.agent.loop import (
-    DEFAULT_STAGE2_MODEL,
+    DEFAULT_STAGE1_MODEL,
     ask,
     build_agent,
     build_prose_agent,
@@ -27,7 +27,7 @@ from jobmarket_agent.storage import analytics
 
 load_dotenv()
 
-DEFAULT_MODEL = "deepseek:deepseek-v4-flash"
+DEFAULT_MODEL = DEFAULT_STAGE1_MODEL
 
 # The judge is a second model (Kimi) that grades what the deterministic graders
 # can't: whether the headline directly answers and key_finding is the strongest
@@ -568,7 +568,7 @@ async def run_suite(
     questions: list[Question],
     runs: int,
     lang: str,
-    prose_model: str,
+    prose_model: str | None,
 ) -> list[Row]:
     rows: list[Row] = []
     for q in questions:
@@ -599,7 +599,7 @@ async def run_cross(
     conn,
     questions: list[CrossQuestion],
     runs: int,
-    prose_model: str,
+    prose_model: str | None,
 ) -> list[Row]:
     rows: list[Row] = []
     for q in questions:
@@ -680,7 +680,11 @@ def report(rows: list[Row], verbose: bool = False) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Agent eval over the frozen jobmarket_eval")
     parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--prose-model", default=DEFAULT_STAGE2_MODEL)
+    parser.add_argument(
+        "--prose-model",
+        default=None,
+        help="Override the stage-2 prose model for both locales (defaults per locale).",
+    )
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--question", action="append", default=None, help="restrict to these ids")
     parser.add_argument("--verbose", action="store_true")

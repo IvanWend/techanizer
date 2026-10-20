@@ -1,7 +1,10 @@
 from jobmarket_agent.agent.loop import (
+    DEFAULT_STAGE2_MODEL,
+    DEFAULT_STAGE2_RU_MODEL,
     assemble,
     build_agent,
     build_prose_agent,
+    default_stage2_model,
     prose_model_settings,
     resolve_prose_model,
 )
@@ -22,7 +25,9 @@ def test_build_agent_registers_three_tools() -> None:
 
 def test_build_prose_agent_is_offline_and_has_no_tools() -> None:
     # defer_model_check=True, same as stage 1, so this builds without a key.
-    agent = build_prose_agent(lang="ru")
+    # lang="en", not "ru": RU now defaults to Kimi, which resolves eagerly
+    # against api.moonshot.cn and needs KIMI_API_KEY — not offline-buildable.
+    agent = build_prose_agent(lang="en")
     assert set(agent._function_toolset.tools) == set()
 
 
@@ -37,6 +42,12 @@ def test_prose_model_settings_kimi_skips_temperature() -> None:
     # the model default.
     assert prose_model_settings("deepseek:deepseek-v4-flash").get("temperature") == 0
     assert prose_model_settings("moonshotai:kimi-k3").get("temperature") is None
+
+
+def test_default_stage2_model_per_locale() -> None:
+    # RU prose is Kimi (the A/B winner); EN prose and the fallback stay DeepSeek.
+    assert default_stage2_model("ru") == DEFAULT_STAGE2_RU_MODEL == "moonshotai:kimi-k3"
+    assert default_stage2_model("en") == DEFAULT_STAGE2_MODEL
 
 
 def test_assemble_fills_placeholders_and_attaches_labels() -> None:

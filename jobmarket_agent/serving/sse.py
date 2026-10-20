@@ -10,7 +10,7 @@ from pydantic_ai.tool_manager import ToolManager
 
 from jobmarket_agent.agent.limits import model_settings, usage_limits
 from jobmarket_agent.agent.locale import Lang
-from jobmarket_agent.agent.loop import assemble, run_prose
+from jobmarket_agent.agent.loop import assemble, default_stage2_model, run_prose
 from jobmarket_agent.agent.schema import Payload, Prose
 
 
@@ -43,7 +43,9 @@ async def stream_answer(
                             if payload is None:
                                 yield sse_event("error", {"message": "no output"})
                                 return
-                            prose = await run_prose(payload, prose_agent)
+                            prose = await run_prose(
+                                payload, prose_agent, default_stage2_model(lang)
+                            )
                             answer = assemble(payload, prose, lang)
                             yield sse_event("answer", answer.model_dump(mode="json"))
             except Exception as e:
