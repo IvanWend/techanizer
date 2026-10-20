@@ -528,18 +528,18 @@ class CrossQuestion(NamedTuple):
     ru: str
 
 
-# The same question in two languages must produce the same language-neutral
-# tables, and both languages must name the true top-1. Because stage 1 emits
-# TableSpec (no labels), `tables == tables` is a literal equality that only
-# holds when the tool calls landed on the same rows — the property the earlier
-# x3 grader wanted but couldn't get while the model wrote labels per language.
-# The company/title check (graded on the assembled Answer) is declension-proof:
+# The same question in two languages must use the same tools (same table
+# sources) and both languages must name the true top-1. Literal row equality
+# proved too brittle: even a compliant stage-1 model emits a different number of
+# rows per language (the EN/RU questions ask singular vs plural), so we compare
+# the set of table sources — the tool strategy — rather than the rows. The
+# company/title check (graded on the assembled Answer) is declension-proof:
 # those fields are copied from the record, not re-written in prose.
 CROSS_QUESTIONS: list[CrossQuestion] = [
     CrossQuestion(
         "x2",
         "cross-language",
-        "highest-salary RUB: same tables EN/RU",
+        "highest-salary RUB: same sources EN/RU",
         "Posting in Russia with the highest salary",
         "Вакансии в россии с самой высокой зп",
     ),
@@ -553,9 +553,11 @@ async def _grade_cross(
     en_answer: Answer,
     ru_answer: Answer,
 ) -> bool:
-    same_tables = bool(en_payload.tables) and en_payload.tables == ru_payload.tables
+    same_sources = bool(en_payload.tables) and {t.source for t in en_payload.tables} == {
+        t.source for t in ru_payload.tables
+    }
     grounded = (await _grade_top_rub(conn, en_answer)) and (await _grade_top_rub(conn, ru_answer))
-    return same_tables and grounded
+    return same_sources and grounded
 
 
 Row = tuple[Question, str, list[str], bool, str]
