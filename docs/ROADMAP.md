@@ -5,7 +5,7 @@ A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
-## Current state (2026-10-19)
+## Current state (2026-10-20)
 
 - **Techanizer market analyzer** (corpus queries + monthly analysis + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
@@ -15,12 +15,13 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
   (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
   trend aggregates (`monthly_skill_frequency` / `monthly_salary`).
-- **PLAN step 5 done (minus the A/B run):** two-stage agent — stage 1 tool-calling → language-neutral
-  `Payload` (`TableSpec` + `Quote` + `Fact`), stage 2 per-locale prose (`Prose`, numbers only as
+- **PLAN step 5 done:** two-stage agent — stage 1 tool-calling → language-neutral `Payload`
+  (`TableSpec` + `Quote` + `Fact`), stage 2 per-locale prose (`Prose`, numbers only as
   `{placeholders}`, code fills locale-formatted); code-owned table labels (`agent/locale.py`);
-  `/ask` carries `lang`; RU eval set (`r1`…`ri1`) + same-tables cross grader (`x2`). Kimi is wired
-  in as the RU-prose candidate (`--prose-model moonshotai:kimi-k3`, China base URL + no
-  `temperature=0`); the DeepSeek-vs-Kimi A/B run itself is still to execute.
+  `/ask` carries `lang`; RU eval set (`r1`…`ri1`) + cross-language grader (`x2`, same sources +
+  top-1). **A/B done:** Kimi won the RU set (30/30 vs DeepSeek 27/30) and is now the RU prose
+  model; stage 1 moved flash → `deepseek-v4-pro` (flash drifted on the table contract); prose
+  prompt tightened (one-sentence headline, similarity never a fact).
 
 ## Phase 1 — Ingestion
 
@@ -83,17 +84,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. **Run the RU-prose A/B (DeepSeek baseline vs Kimi).** Needs `DEEPSEEK_API_KEY` + `KIMI_API_KEY`
-   and `EVAL_DATABASE_URL` (the frozen snapshot) in `.env`. Run from the repo root:
-
-   ```bash
-   # baseline — DeepSeek is the fallback, so this is the number to beat
-   uv run python -m evals.eval_agent --runs 3
-
-   # candidate — Kimi as the stage-2 prose model
-   uv run python -m evals.eval_agent --runs 3 --prose-model moonshotai:kimi-k3
-   ```
-
-   Record the per-kind pass rates; if Kimi is equal-or-better on the RU set, adopt it as the RU
-   prose model (DeepSeek stays fallback). Then `docs/PLAN.md` step 6: monthly market analysis job
-   (numeric payload → prose, both locales, stored).
+1. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
+   a `reports` table).
+2. **PLAN step 8** — finish the Techanizer naming pass (ROADMAP Phase 6 "Refactor product naming"
+   still open; the README/package/loop.py half landed in `3bc9cdf` + `a01641c`).
