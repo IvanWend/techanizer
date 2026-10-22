@@ -1,18 +1,17 @@
 # Techanizer
 
 Techanizer is an applied-AI tech job-market agent. It analyzes a corpus of remote
-technology vacancies from four legally accessible sources: Hacker News *Who Is
+technology vacancies from four sources: Hacker News *Who Is
 Hiring*, Remotive, Web3.career, and Habr Career.
 
-It turns inconsistent English- and Russian-language postings into structured,
-searchable data and answers questions such as:
+It turns inconsistent English and Russian postings
+into structured, searchable data and answers questions such as:
 
-- Which skills are most common among senior backend roles?
+- Which skills are most common among backend roles?
 - What salary ranges are reported by currency or seniority?
 - Which vacancies are semantically closest to a role description?
-- Which companies and postings support a conclusion?
 
-This is a production-oriented semester project for integrating AI into a real data
+This is a production-oriented project for integrating AI into a real data
 pipeline. The source mix is intentionally heterogeneous; it is not intended to be
 a statistically representative model of the whole labor market. Techanizer answers
 questions about the corpus and provides recurring monthly market analysis; the
@@ -50,16 +49,6 @@ Postgres raw postings ──► LLM extraction with Pydantic validation
   quotes, and explicit missing-data states.
 - Weekly `load → extract → embed` scheduler with per-source run logging.
 
-## Current status
-
-- Backend and frontend quality gates pass: **226 Python tests**, Ruff, mypy,
-  frontend lint, and production build.
-- Agent evaluation currently reports **59/60** on the maintained suite.
-- The Russian prose model A/B run is prepared but not yet recorded.
-- The monthly analysis tab is currently a designed placeholder; analysis generation
-  and storage are not implemented yet.
-- VPS deployment with web and Ollama services is planned, but this repository is
-  currently a local/self-hosted setup.
 
 ## Try it locally
 
@@ -161,12 +150,8 @@ docs/                         roadmap, plan, and engineering decisions
   source availability and provides a multilingual extraction/use case; it does
   not represent national language proportions.
 - Currency values are kept in their stated currency and are not converted.
-- Four roles currently have no useful embedding and are invisible to semantic
-  search.
 - Contact information in raw postings can be exposed through detailed record
-  access; email redaction is intentionally out of scope.
-- Production deployment, automated backups, persistent monitoring, and the
-  monthly analysis are future work.
+  access.
 
 ## Validation
 
@@ -176,6 +161,3 @@ uv run mypy jobmarket_agent/ tests/
 uv run pytest -q
 cd frontend && npm run lint && npm run build
 ```
-
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for progress and [`docs/DECISIONS.md`](docs/DECISIONS.md)
-for the reasoning behind the data, agent, and operational design choices.
