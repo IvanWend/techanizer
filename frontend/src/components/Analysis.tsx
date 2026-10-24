@@ -6,6 +6,15 @@ import { statusFor } from '../lib/status'
 import { ui, questions, type Lang } from '../lib/i18n'
 import type { Answer } from '../lib/types'
 
+// UsageLimitExceeded's message includes a pydantic docs URL. The card already
+// shows errorHint; don't also print the raw dump. Matches the sanitized frame
+// and a stale server that still sends the URL.
+function showRawError(message: string): boolean {
+  return !/tool_calls_limit|tool call limit exceeded|UsageLimitExceeded|ai\.pydantic\.dev/i.test(
+    message,
+  )
+}
+
 export function Analysis({ lang }: { lang: Lang }) {
   const t = ui[lang]
   const [query, setQuery] = useState(t.defaultQuery)
@@ -118,12 +127,6 @@ export function Analysis({ lang }: { lang: Lang }) {
           )}
         </div>
         <div className="mx-auto mt-2 flex h-4 max-w-[1180px] items-center gap-2 font-mono text-[9px] text-[var(--text-tertiary)]">
-          {status && (
-            <>
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
-              <span>{status}</span>
-            </>
-          )}
           {answer && !status && !error && (
             <span className="text-[var(--accent-text)]">{t.complete}</span>
           )}
@@ -179,63 +182,67 @@ export function Analysis({ lang }: { lang: Lang }) {
         </aside>
 
         <section className="min-w-0 flex-1 overflow-y-auto">
-          <article className="mx-auto max-w-[820px] px-4 py-7 sm:px-8 sm:py-10">
-            {error !== null ? (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/[0.06] px-4 py-4">
-                <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">
-                  {t.errorTitle}
-                </h2>
-                <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-                  {t.errorHint}
-                </p>
-                <p className="mt-2 font-mono text-[10px] text-[var(--text-tertiary)]">
-                  {error}
-                </p>
-              </div>
-            ) : streaming && answer === null ? (
-              <div className="space-y-6">
-                <div className="h-5 w-2/3 animate-pulse bg-[var(--fill-soft)]" />
-                <div className="h-3 w-full animate-pulse bg-[var(--fill-soft)]" />
-                <div className="h-3 w-5/6 animate-pulse bg-[var(--fill-soft)]" />
-                <div className="h-3 w-4/6 animate-pulse bg-[var(--fill-soft)]" />
-              </div>
-            ) : answer !== null ? (
-              <>
-                <div className="mb-6 flex items-center justify-between border-b border-[var(--border)] pb-4">
-                  <p className="font-mono text-[9px] tracking-[0.12em] text-[var(--accent-text)]">
-                    {t.complete}
-                  </p>
-                </div>
-                <ContractAnswer answer={answer} lang={lang} />
-              </>
-            ) : (
-              <div className="mx-auto flex max-w-xl flex-col items-center justify-center gap-6 py-16 text-center">
-                <div className="flex h-12 w-12 items-center justify-center border border-[var(--border)] text-cyan-500">
-                  <Icon name="bolt" size={20} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
-                    {t.emptyTitle}
+          {streaming && answer === null && error === null ? (
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-400" />
+              <p className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-primary)]">
+                {status ?? t.thinking}
+              </p>
+            </div>
+          ) : (
+            <article className="mx-auto max-w-[820px] px-4 py-7 sm:px-8 sm:py-10">
+              {error !== null ? (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/[0.06] px-4 py-4">
+                  <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">
+                    {t.errorTitle}
                   </h2>
-                  <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
-                    {t.emptyHint}
+                  <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                    {t.errorHint}
                   </p>
+                  {showRawError(error) && (
+                    <p className="mt-2 font-mono text-[10px] text-[var(--text-tertiary)]">
+                      {error}
+                    </p>
+                  )}
                 </div>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {suggestions.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-cyan-400/40 hover:text-[var(--text-primary)]"
-                      onClick={() => run(item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
+              ) : answer !== null ? (
+                <>
+                  <div className="mb-6 flex items-center justify-between border-b border-[var(--border)] pb-4">
+                    <p className="font-mono text-[9px] tracking-[0.12em] text-[var(--accent-text)]">
+                      {t.complete}
+                    </p>
+                  </div>
+                  <ContractAnswer answer={answer} lang={lang} />
+                </>
+              ) : (
+                <div className="mx-auto flex max-w-xl flex-col items-center justify-center gap-6 py-16 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center border border-[var(--border)] text-cyan-500">
+                    <Icon name="bolt" size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+                      {t.emptyTitle}
+                    </h2>
+                    <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
+                      {t.emptyHint}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {suggestions.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-cyan-400/40 hover:text-[var(--text-primary)]"
+                        onClick={() => run(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </article>
+              )}
+            </article>
+          )}
         </section>
       </div>
     </div>

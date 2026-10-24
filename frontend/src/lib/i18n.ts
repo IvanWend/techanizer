@@ -1,7 +1,7 @@
-// UI chrome strings, both locales. The agent's *prose* (headline, key_finding,
-// quote text, table titles) is still English-only (backend localisation is a
-// later milestone); this covers the chrome so the RU/EN toggle is visible and
-// wired end-to-end.
+// UI chrome and the three suggested questions, both locales. Agent prose and
+// table labels come from the backend. Each suggestion maps to one sql_query —
+// a question the tools cannot answer (geography, trends, role-scoped skills)
+// makes the agent loop until it hits the tool-call cap.
 
 export type Lang = 'en' | 'ru'
 
@@ -36,7 +36,7 @@ const en: Messages = {
   analysis: 'Analysis',
   monthly: 'Monthly report',
   ask: 'Ask the corpus…',
-  defaultQuery: 'What skills command the highest salaries for remote backend roles?',
+  defaultQuery: 'Which skills appear in the most roles?',
   run: 'Run query',
   cancel: 'Stop',
   complete: 'ANALYSIS · COMPLETE',
@@ -63,7 +63,7 @@ const ru: Messages = {
   analysis: 'Аналитика',
   monthly: 'Ежемесячный отчёт',
   ask: 'Задать вопрос по базе…',
-  defaultQuery: 'Какие навыки дают самые высокие зарплаты в удалённых backend-вакансиях?',
+  defaultQuery: 'Какие навыки упоминаются в наибольшем числе ролей?',
   run: 'Запустить',
   cancel: 'Стоп',
   complete: 'АНАЛИЗ · ГОТОВО',
@@ -88,13 +88,13 @@ export const ui: Record<Lang, Messages> = { en, ru }
 
 export const questions: Record<Lang, { group: string; items: string[] }[]> = {
   en: [
-    { group: 'SKILLS', items: ['Which backend skills appear most?', 'Fastest-growing skill pairs', 'Rust roles by geography'] },
-    { group: 'SALARIES', items: ['Highest-paid remote roles', 'Median salary by seniority', 'Compare USD and EUR salaries'] },
-    { group: 'ROLES', items: ['Remote staff-level openings', 'Engineering roles in Europe', 'Companies hiring for platform'] },
+    { group: 'SKILLS', items: ['Which skills appear in the most roles?'] },
+    { group: 'SALARIES', items: ['Median USD salary by seniority'] },
+    { group: 'ROLES', items: ['Highest-paid roles in USD'] },
   ],
   ru: [
-    { group: 'НАВЫКИ', items: ['Какие backend-навыки встречаются чаще?', 'Самые быстрорастущие пары навыков', 'География вакансий с Rust'] },
-    { group: 'ЗАРПЛАТЫ', items: ['Самые высокооплачиваемые удалённые роли', 'Медиана зарплаты по уровню', 'Сравнить зарплаты в USD и EUR'] },
-    { group: 'РОЛИ', items: ['Удалённые вакансии уровня staff', 'Инженерные роли в Европе', 'Компании, нанимающие platform-инженеров'] },
+    { group: 'НАВЫКИ', items: ['Какие навыки упоминаются в наибольшем числе ролей?'] },
+    { group: 'ЗАРПЛАТЫ', items: ['Медианная зарплата в USD по уровню'] },
+    { group: 'РОЛИ', items: ['Самые высокооплачиваемые роли в USD'] },
   ],
 }
