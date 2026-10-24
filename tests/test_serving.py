@@ -11,6 +11,7 @@ from pydantic_ai import (
     AgentRunResultEvent,
     FunctionToolCallEvent,
 )
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from jobmarket_agent.agent.locale import Lang
 from jobmarket_agent.agent.schema import Answer, Payload, Prose, Quote, Table, TableSpec
@@ -168,6 +169,15 @@ def test_stream_answer_maps_events_to_frames() -> None:
 def test_stream_answer_emits_error_frame() -> None:
     stub = _StubStage1Agent([], exc=RuntimeError("boom"))
     assert _collect(stub, _StubProseAgent(), "q") == ['event: error\ndata: {"message": "boom"}\n\n']
+
+
+def test_stream_answer_hides_usage_limit_url() -> None:
+    # The exception appends a pydantic docs URL. The frame the UI renders must
+    # not carry it — the card already has a short hint.
+    exc = UsageLimitExceeded("The next tool call(s) would exceed the tool_calls_limit of 15")
+    frames = _collect(_StubStage1Agent([], exc=exc), _StubProseAgent(), "q")
+    assert frames == ['event: error\ndata: {"message": "tool call limit exceeded"}\n\n']
+    assert "pydantic.dev" not in frames[0]
 
 
 def test_health() -> None:

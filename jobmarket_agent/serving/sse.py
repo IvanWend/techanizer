@@ -6,6 +6,7 @@ from pydantic_ai import (
     AgentRunResultEvent,
     FunctionToolCallEvent,
 )
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.tool_manager import ToolManager
 
 from jobmarket_agent.agent.limits import model_settings, usage_limits
@@ -16,6 +17,14 @@ from jobmarket_agent.agent.schema import Payload, Prose
 
 def sse_event(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+def error_message(exc: BaseException) -> str:
+    # UsageLimitExceeded appends a pydantic docs URL. The UI already shows a
+    # short hint; the frame must not ship the URL or the raw limit dump.
+    if isinstance(exc, UsageLimitExceeded):
+        return "tool call limit exceeded"
+    return str(exc)
 
 
 async def stream_answer(
@@ -49,5 +58,5 @@ async def stream_answer(
                             answer = assemble(payload, prose, lang)
                             yield sse_event("answer", answer.model_dump(mode="json"))
             except Exception as e:
-                yield sse_event("error", {"message": str(e)})
+                yield sse_event("error", {"message": error_message(e)})
                 return

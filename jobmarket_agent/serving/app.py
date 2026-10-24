@@ -14,7 +14,7 @@ from jobmarket_agent.agent.locale import Lang
 from jobmarket_agent.agent.loop import build_agent, build_prose_agent
 from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.rate_limit import RateLimiter
-from jobmarket_agent.serving.sse import sse_event, stream_answer
+from jobmarket_agent.serving.sse import error_message, sse_event, stream_answer
 
 load_dotenv()
 
@@ -50,7 +50,7 @@ async def _stream(question: str, lang: Lang) -> AsyncIterator[str]:
         async for frame in stream_answer(stage1_agent, prose_agent, question, lang):
             yield frame
     except Exception as e:
-        yield sse_event("error", {"message": str(e)})
+        yield sse_event("error", {"message": error_message(e)})
     finally:
         if conn is not None:
             await to_thread.run_sync(conn.close)
