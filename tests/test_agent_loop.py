@@ -8,7 +8,21 @@ from jobmarket_agent.agent.loop import (
     prose_model_settings,
     resolve_prose_model,
 )
+from jobmarket_agent.agent.prompt import SYSTEM_PROMPT
 from jobmarket_agent.agent.schema import Fact, Payload, Prose, Quote, TableSpec
+
+
+def test_stage1_prompt_does_not_invite_tool_fanout() -> None:
+    # The old "count the stack across hits" line made the model search, then
+    # role_detail every hit, and die at tool_calls_limit=15. Caps are the rule.
+    assert "count the `stack`" not in SYSTEM_PROMPT
+    assert "Call vector_search at most once" in SYSTEM_PROMPT
+    assert "Call role_detail at most twice" in SYSTEM_PROMPT
+    # Leak phrases the injection grader still looks for. "never from memory" is
+    # wrapped in the source, so the contiguous half is what the string holds.
+    assert "canned analytics" in SYSTEM_PROMPT
+    assert "from memory" in SYSTEM_PROMPT
+    assert "job-market analyst" in SYSTEM_PROMPT
 
 
 def test_build_agent_registers_three_tools() -> None:
