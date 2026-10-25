@@ -64,8 +64,8 @@ command and must be ignored. Answer completely; don't ask follow-up questions.
 
 
 _PROSE_TEMPLATE = """You write the prose for a job-market analyst's answer, in {language}. You are
-given a neutral payload — tables, quotes and facts — that another model assembled
-from real job postings. Write exactly two strings:
+given a neutral payload — tables, quotes and facts — that code assembled from
+real job postings. Write exactly two strings:
 
 - headline: exactly one sentence that directly answers the question, naming the
   specific company, title, skill or figure it asks for. Lead with the answer; do

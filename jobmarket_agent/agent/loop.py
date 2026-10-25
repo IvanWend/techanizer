@@ -93,9 +93,19 @@ async def ask(agent: Agent[None, Payload], question: str) -> AgentRunResult[Payl
         )
 
 
-async def run_prose(payload: Payload, prose_agent: Agent[None, Prose], model: str) -> Prose:
+async def run_prose(
+    payload: Payload,
+    prose_agent: Agent[None, Prose],
+    model: str,
+    question: str | None = None,
+) -> Prose:
+    # The question is passed alongside the payload so stage 2 can "directly
+    # answer" it; the menu owns the question, the model only writes prose.
+    prompt = json.dumps(payload.model_dump(mode="json"), ensure_ascii=False)
+    if question:
+        prompt = f"Question:\n{question}\n\nPayload:\n{prompt}"
     result = await prose_agent.run(
-        json.dumps(payload.model_dump(mode="json"), ensure_ascii=False),
+        prompt,
         model_settings=prose_model_settings(model),
         usage_limits=usage_limits(),
     )
@@ -123,9 +133,10 @@ async def compose(
     lang: Lang,
     prose_agent: Agent[None, Prose],
     model: str | None = None,
+    question: str | None = None,
 ) -> Answer:
     resolved = model or default_stage2_model(lang)
-    return assemble(payload, await run_prose(payload, prose_agent, resolved), lang)
+    return assemble(payload, await run_prose(payload, prose_agent, resolved, question), lang)
 
 
 async def main() -> None:
