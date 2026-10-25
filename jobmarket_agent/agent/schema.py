@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field, field_validator
 # value", rendered as an explicit absence rather than a fabricated figure.
 Cell = str | int | float | None
 
+# Filter enums shared by the tools and the query menu. 'unknown' is deliberately
+# absent: it is the placeholder default meaning "unclassified", never a level or
+# policy a caller asks to filter on.
+Seniority = Literal["intern", "junior", "mid", "senior", "staff+"]
+Remote = Literal["remote", "hybrid", "onsite"]
+
 
 class Quote(BaseModel):
     id: int = Field(description="1-based citation number, referenced from key_finding as [n].")
@@ -51,6 +57,8 @@ class Quote(BaseModel):
 # byte-identical, which is what the cross-language grader checks.
 TableSource = Literal[
     "skill_frequency",
+    "skill_frequency_by_seniority",
+    "skill_frequency_by_remote",
     "salary_by_currency",
     "salary_by_seniority",
     "top_salaries",

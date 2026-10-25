@@ -80,6 +80,36 @@ ORDER BY roles DESC, skill
 LIMIT %(limit)s
 """
 
+# The two scoped skill queries: the same shape as SKILL_FREQUENCY_SQL with one
+# equality filter. They back the menu's "most-common skills" scope selector
+# (overall / by-seniority / by-remote) — code filters, never the model (the
+# retired stage 1 would read the corpus-wide table and ignore the scope).
+SKILL_FREQUENCY_BY_SENIORITY_SQL = f"""
+SELECT unnest(s.stack) AS skill,
+       count(*) AS roles,
+       count(DISTINCT s.raw_posting_id) AS postings
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE s.seniority = %(seniority)s
+  AND {WINDOW_SQL}
+GROUP BY 1
+ORDER BY roles DESC, skill
+LIMIT %(limit)s
+"""
+
+SKILL_FREQUENCY_BY_REMOTE_SQL = f"""
+SELECT unnest(s.stack) AS skill,
+       count(*) AS roles,
+       count(DISTINCT s.raw_posting_id) AS postings
+FROM structured_postings s
+JOIN raw_postings r ON r.id = s.raw_posting_id
+WHERE s.remote_policy = %(remote)s
+  AND {WINDOW_SQL}
+GROUP BY 1
+ORDER BY roles DESC, skill
+LIMIT %(limit)s
+"""
+
 # NULL currency is a mix of whatever currencies the source never stated, so a
 # median across it is neither currency. FILTER keeps the row (n = coverage)
 # while withholding a number that cannot mean anything.
@@ -161,6 +191,24 @@ ORDER BY month, n DESC, s.salary_currency
 def skill_frequency(conn, limit: int = 20) -> list[SkillCount]:
     with conn.cursor() as cur:
         cur.execute(SKILL_FREQUENCY_SQL, {"limit": limit, "days": WINDOW_DAYS})
+        return [SkillCount(*row) for row in cur.fetchall()]
+
+
+def skill_frequency_by_seniority(conn, seniority: str, limit: int = 20) -> list[SkillCount]:
+    with conn.cursor() as cur:
+        cur.execute(
+            SKILL_FREQUENCY_BY_SENIORITY_SQL,
+            {"seniority": seniority, "limit": limit, "days": WINDOW_DAYS},
+        )
+        return [SkillCount(*row) for row in cur.fetchall()]
+
+
+def skill_frequency_by_remote(conn, remote: str, limit: int = 20) -> list[SkillCount]:
+    with conn.cursor() as cur:
+        cur.execute(
+            SKILL_FREQUENCY_BY_REMOTE_SQL,
+            {"remote": remote, "limit": limit, "days": WINDOW_DAYS},
+        )
         return [SkillCount(*row) for row in cur.fetchall()]
 
 
