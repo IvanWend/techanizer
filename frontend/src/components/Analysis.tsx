@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { ContractAnswer } from './contract'
 import { streamAnswer, type StreamEvent } from '../lib/sse'
-import { statusFor } from '../lib/status'
-import { ui, questions, type Lang } from '../lib/i18n'
-import type { Answer } from '../lib/types'
+import { menu, ui, type Lang, type Option } from '../lib/i18n'
+import type { Answer, MenuQuery, Remote, Seniority } from '../lib/types'
 
 // UsageLimitExceeded's message includes a pydantic docs URL. The card already
 // shows errorHint; don't also print the raw dump. Matches the sanitized frame
@@ -15,61 +14,219 @@ function showRawError(message: string): boolean {
   )
 }
 
+// A bordered dropdown: a micro-label over the selected label, a chevron, and a
+// panel of options. `value` is the canonical token the backend expects; labels
+// are localized by the caller.
+function Dropdown({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: Option[]
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((o) => o.value === value)
+  return (
+    <div className="relative min-w-[152px]">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={`flex h-11 w-full items-center justify-between border bg-[var(--surface-raised)] px-3 text-left ${
+          open ? 'border-cyan-400' : 'border-[var(--border)] hover:border-[var(--text-faint)]'
+        }`}
+      >
+        <span>
+          <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--text-faint)]">
+            {label}
+          </span>
+          <span className="mt-0.5 block font-mono text-[10px] text-[var(--text-primary)]">
+            {selected?.label ?? value}
+          </span>
+        </span>
+        <span className={`text-[var(--text-tertiary)] transition ${open ? 'rotate-90' : ''}`}>
+          <Icon name="chevron" size={12} />
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-[46px] z-30 w-full border border-[var(--border)] bg-[var(--surface-raised)] shadow-[0_12px_30px_rgba(0,0,0,.28)]">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+              className={`block w-full border-b border-[var(--border-soft)] px-3 py-2 text-left font-mono text-[10px] last:border-0 hover:bg-[var(--fill-hover)] hover:text-[var(--accent-text)] ${
+                option.value === value ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QueryControls({
+  query,
+  lang,
+  streaming,
+  onRun,
+  onCancel,
+}: {
+  query: MenuQuery
+  lang: Lang
+  streaming: boolean
+  onRun: (params: Record<string, unknown>) => void
+  onCancel: () => void
+}) {
+  const m = menu[lang]
+  const t = ui[lang]
+  const [scope, setScope] = useState<'overall' | 'seniority' | 'remote'>('overall')
+  const [level, setLevel] = useState<Seniority>('senior')
+  const [remote, setRemote] = useState<Remote>('remote')
+  const [currency, setCurrency] = useState('USD')
+  const [phrase, setPhrase] = useState('')
+  const [sLevel, setSLevel] = useState<Seniority | ''>('')
+  const [sRemote, setSRemote] = useState<Remote | ''>('')
+
+  // The "Any" option renders as an empty value that the caller omits from params.
+  const anyOption: Option = { value: '', label: m.any }
+
+  function assemble(): Record<string, unknown> {
+    if (query === 'skills') {
+      const params: Record<string, unknown> = { scope }
+      if (scope === 'seniority') params.seniority = level
+      if (scope === 'remote') params.remote = remote
+      return params
+    }
+    if (query === 'salary_by_seniority') return { currency }
+    if (query === 'salary_by_currency') return {}
+    if (query === 'top_salaries') return { currency }
+    const params: Record<string, unknown> = { phrase }
+    if (sLevel) params.seniority = [sLevel]
+    if (sRemote) params.remote = [sRemote]
+    return params
+  }
+
+  const canRun = query !== 'similar_roles' || phrase.trim().length > 0
+
+  return (
+    <div className="relative z-20 flex min-h-14 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 sm:px-4">
+      {query === 'skills' && (
+        <>
+          <Dropdown
+            label={m.scope}
+            value={scope}
+            options={m.scopeOptions}
+            onChange={(v) => setScope(v as 'overall' | 'seniority' | 'remote')}
+          />
+          {scope === 'seniority' && (
+            <Dropdown label={m.seniority} value={level} options={m.seniorityOptions} onChange={(v) => setLevel(v as Seniority)} />
+          )}
+          {scope === 'remote' && (
+            <Dropdown label={m.remote} value={remote} options={m.remoteOptions} onChange={(v) => setRemote(v as Remote)} />
+          )}
+        </>
+      )}
+      {(query === 'salary_by_seniority' || query === 'top_salaries') && (
+        <Dropdown
+          label={m.currency}
+          value={currency}
+          options={m.currencyOptions.map((c) => ({ value: c, label: c }))}
+          onChange={setCurrency}
+        />
+      )}
+      {query === 'similar_roles' && (
+        <>
+          <label className="flex h-11 min-w-[240px] flex-1 items-center border border-cyan-400 bg-[var(--surface-raised)] px-3 sm:max-w-[420px]">
+            <span className="text-[var(--text-tertiary)]">
+              <Icon name="search" size={15} />
+            </span>
+            <span className="ml-3 flex-1">
+              <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--text-faint)]">
+                {m.role}
+              </span>
+              <input
+                autoFocus
+                className="mt-0.5 w-full bg-transparent font-mono text-[10px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
+                value={phrase}
+                onChange={(e) => setPhrase(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canRun) onRun(assemble())
+                }}
+                placeholder={m.describe}
+              />
+            </span>
+          </label>
+          <Dropdown label={m.seniority} value={sLevel} options={[anyOption, ...m.seniorityOptions]} onChange={(v) => setSLevel(v as Seniority | '')} />
+          <Dropdown label={m.remote} value={sRemote} options={[anyOption, ...m.remoteOptions]} onChange={(v) => setSRemote(v as Remote | '')} />
+        </>
+      )}
+      {streaming ? (
+        <button
+          type="button"
+          className="ml-auto flex h-11 items-center gap-2 border border-[var(--border)] px-4 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          onClick={onCancel}
+        >
+          {t.cancel}
+          <Icon name="close" size={13} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="ml-auto flex h-11 items-center gap-2 bg-cyan-300 px-4 text-[11px] font-semibold text-[var(--accent-contrast)] hover:bg-cyan-200 disabled:opacity-60"
+          disabled={!canRun}
+          onClick={() => onRun(assemble())}
+        >
+          {t.run}
+          <Icon name="arrow" size={13} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function Analysis({ lang }: { lang: Lang }) {
   const t = ui[lang]
-  const [query, setQuery] = useState(t.defaultQuery)
+  const m = menu[lang]
+  const [query, setQuery] = useState<MenuQuery>('skills')
   const [answer, setAnswer] = useState<Answer | null>(null)
-  const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
   const [railOpen, setRailOpen] = useState(true)
   const controllerRef = useRef<AbortController | null>(null)
-  const previousLang = useRef(lang)
-
-  // Keep the pre-filled default query in sync when the language toggles, but
-  // only if the user hasn't typed their own question.
-  useEffect(() => {
-    const old = previousLang.current
-    setQuery((current) => {
-      if (current === ui[old].defaultQuery) return ui[lang].defaultQuery
-      return current
-    })
-    previousLang.current = lang
-  }, [lang])
 
   function handleEvent(e: StreamEvent) {
-    switch (e.event) {
-      case 'tool_call':
-        setStatus(statusFor(e.data.name, lang))
-        break
-      case 'answer':
-        setAnswer(e.data)
-        setStatus(null)
-        setStreaming(false)
-        break
-      case 'error':
-        setError(e.data.message)
-        setStatus(null)
-        setStreaming(false)
-        break
+    if (e.event === 'answer') {
+      setAnswer(e.data)
+      setError(null)
+      setStreaming(false)
+    } else {
+      setError(e.data.message)
+      setAnswer(null)
+      setStreaming(false)
     }
   }
 
-  function run(raw: string) {
-    const text = raw.trim()
-    if (!text || streaming) return
-    setQuery(text)
+  function run(params: Record<string, unknown>) {
+    if (streaming) return
     setAnswer(null)
     setError(null)
-    setStatus(t.thinking)
     setStreaming(true)
-
     const controller = new AbortController()
     controllerRef.current = controller
-    streamAnswer(text, lang, handleEvent, controller.signal).catch((err) => {
+    streamAnswer(query, params, lang, handleEvent, controller.signal).catch((err) => {
       if (controller.signal.aborted) return // cancel is a stop, not an error
       setError(err instanceof Error ? err.message : String(err))
-      setStatus(null)
       setStreaming(false)
     })
   }
@@ -77,61 +234,27 @@ export function Analysis({ lang }: { lang: Lang }) {
   function cancel() {
     controllerRef.current?.abort()
     controllerRef.current = null
-    setStatus(null)
     setStreaming(false)
   }
 
-  const suggestions = questions[lang].flatMap((section) => section.items)
+  function choose(id: MenuQuery) {
+    controllerRef.current?.abort()
+    setQuery(id)
+    setAnswer(null)
+    setError(null)
+    setStreaming(false)
+  }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-3 sm:px-5">
-        <div className="mx-auto flex max-w-[1180px] gap-2">
-          <div className="relative flex min-w-0 flex-1 items-center border border-[var(--border)] bg-[var(--surface-raised)] focus-within:border-cyan-400/60">
-            <span className="ml-3 text-[var(--text-tertiary)]">
-              <Icon name="search" size={16} />
-            </span>
-            <input
-              aria-label={t.ask}
-              className="h-11 min-w-0 flex-1 bg-transparent px-3 text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  run(query)
-                }
-              }}
-              placeholder={t.ask}
-            />
-          </div>
-          {streaming ? (
-            <button
-              type="button"
-              className="flex h-11 items-center gap-2 border border-[var(--border)] px-4 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              onClick={cancel}
-            >
-              {t.cancel}
-              <Icon name="close" size={13} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="flex h-11 items-center gap-2 bg-cyan-300 px-4 text-[11px] font-semibold text-[var(--accent-contrast)] hover:bg-cyan-200 disabled:opacity-60"
-              disabled={!query.trim()}
-              onClick={() => run(query)}
-            >
-              {t.run}
-              <Icon name="arrow" size={13} />
-            </button>
-          )}
-        </div>
-        <div className="mx-auto mt-2 flex h-4 max-w-[1180px] items-center gap-2 font-mono text-[9px] text-[var(--text-tertiary)]">
-          {answer && !status && !error && (
-            <span className="text-[var(--accent-text)]">{t.complete}</span>
-          )}
-        </div>
-      </div>
+      <QueryControls
+        key={`${query}-${lang}`}
+        query={query}
+        lang={lang}
+        streaming={streaming}
+        onRun={run}
+        onCancel={cancel}
+      />
 
       <div className="flex min-h-0 flex-1">
         <aside
@@ -142,7 +265,7 @@ export function Analysis({ lang }: { lang: Lang }) {
           <div className="flex h-10 items-center justify-between border-b border-[var(--border-soft)] px-3">
             {railOpen && (
               <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
-                {t.suggestions}
+                {m.query}
               </span>
             )}
             <button
@@ -154,30 +277,32 @@ export function Analysis({ lang }: { lang: Lang }) {
             </button>
           </div>
           {railOpen && (
-            <div className="h-[calc(100%-40px)] overflow-y-auto px-3 py-4">
-              {questions[lang].map((section) => (
-                <section key={section.group} className="mb-6">
+            <nav className="px-3 py-4">
+              {m.queryGroups.map((group) => (
+                <section key={group.group} className="mb-6">
                   <h2 className="mb-2 font-mono text-[9px] tracking-[0.13em] text-[var(--text-faint)]">
-                    {section.group}
+                    {group.group}
                   </h2>
                   <div className="space-y-0.5">
-                    {section.items.map((item) => (
+                    {group.items.map((item) => (
                       <button
-                        key={item}
+                        key={item.id}
                         type="button"
-                        className="group flex w-full items-start gap-2 px-1 py-2 text-left text-[11px] leading-[1.4] text-[var(--text-secondary)] hover:bg-[var(--fill-hover)] hover:text-[var(--text-primary)]"
-                        onClick={() => run(item)}
+                        className={`group flex w-full items-center gap-2 px-1 py-2 text-left text-[11px] leading-[1.4] hover:bg-[var(--fill-hover)] ${
+                          query === item.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
+                        }`}
+                        onClick={() => choose(item.id)}
                       >
-                        <span className="mt-0.5 text-[var(--text-faint)] group-hover:text-cyan-500">
+                        <span className={query === item.id ? 'text-[var(--accent-text)]' : 'text-[var(--text-faint)]'}>
                           <Icon name="chevron" size={11} />
                         </span>
-                        {item}
+                        {item.label}
                       </button>
                     ))}
                   </div>
                 </section>
               ))}
-            </div>
+            </nav>
           )}
         </aside>
 
@@ -186,7 +311,7 @@ export function Analysis({ lang }: { lang: Lang }) {
             <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
               <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-400" />
               <p className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-primary)]">
-                {status ?? t.thinking}
+                {t.thinking}
               </p>
             </div>
           ) : (
@@ -228,14 +353,14 @@ export function Analysis({ lang }: { lang: Lang }) {
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
-                    {suggestions.map((item) => (
+                    {m.suggestions.map((item) => (
                       <button
-                        key={item}
+                        key={item.id}
                         type="button"
                         className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-cyan-400/40 hover:text-[var(--text-primary)]"
-                        onClick={() => run(item)}
+                        onClick={() => choose(item.id)}
                       >
-                        {item}
+                        {item.label}
                       </button>
                     ))}
                   </div>
