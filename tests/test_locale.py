@@ -13,8 +13,6 @@ from jobmarket_agent.agent.schema import Fact, Prose, TableSource
 # names a source the labels table forgot.
 _ALL_SOURCES: set[TableSource] = {
     "skill_frequency",
-    "skill_frequency_by_seniority",
-    "skill_frequency_by_remote",
     "salary_by_currency",
     "salary_by_seniority",
     "top_salaries",

@@ -11,14 +11,10 @@ from jobmarket_agent.ops.run_log import begin_run, end_run
 from jobmarket_agent.storage.analytics import (
     MonthSalary,
     MonthSkill,
-    SkillCount,
     TopSalary,
     monthly_salary,
     monthly_skill_frequency,
     rank_top_salaries,
-    skill_frequency,
-    skill_frequency_by_remote,
-    skill_frequency_by_seniority,
 )
 from jobmarket_agent.storage.embed import to_vector_text
 
@@ -98,31 +94,6 @@ def writable_conn():
         if row is not None and row[0] == "live":
             pytest.skip("refusing to touch the live DB")
         yield conn
-
-
-def test_skill_frequency_by_seniority_shape(eval_conn) -> None:
-    rows = skill_frequency_by_seniority(eval_conn, "senior", limit=5)
-    assert 0 < len(rows) <= 5
-    for r in rows:
-        assert isinstance(r, SkillCount)
-        assert r.roles > 0 and r.postings > 0
-    # SKILL_FREQUENCY_BY_SENIORITY_SQL orders by roles DESC.
-    assert all(rows[i].roles >= rows[i + 1].roles for i in range(len(rows) - 1))
-    # The filter narrows the universe: the top senior skill can't beat the
-    # corpus-wide top skill, and the count can't exceed the corpus-wide total.
-    overall = skill_frequency(eval_conn, limit=1)[0]
-    assert rows[0].roles <= overall.roles
-
-
-def test_skill_frequency_by_remote_shape(eval_conn) -> None:
-    rows = skill_frequency_by_remote(eval_conn, "remote", limit=5)
-    assert 0 < len(rows) <= 5
-    for r in rows:
-        assert isinstance(r, SkillCount)
-        assert r.roles > 0 and r.postings > 0
-    assert all(rows[i].roles >= rows[i + 1].roles for i in range(len(rows) - 1))
-    overall = skill_frequency(eval_conn, limit=1)[0]
-    assert rows[0].roles <= overall.roles
 
 
 def _min_month(conn) -> date:

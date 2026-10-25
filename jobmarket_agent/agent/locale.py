@@ -14,14 +14,6 @@ TABLE_LABELS: dict[TableSource, dict[Lang, tuple[str, list[str]]]] = {
         "en": ("Most-common skills", []),
         "ru": ("Самые частые навыки", []),
     },
-    "skill_frequency_by_seniority": {
-        "en": ("Most-common skills by seniority", []),
-        "ru": ("Самые частые навыки по уровню", []),
-    },
-    "skill_frequency_by_remote": {
-        "en": ("Most-common skills by remote", []),
-        "ru": ("Самые частые навыки по формату", []),
-    },
     "salary_by_currency": {
         "en": ("Salaries by currency", ["Currency", "Roles", "Median max/mo"]),
         "ru": ("Зарплаты по валютам", ["Валюта", "Ролей", "Медиана/мес"]),

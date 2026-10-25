@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from typing import Any, Literal, assert_never
 
-from jobmarket_agent.agent.schema import Remote, Seniority
 from jobmarket_agent.storage import analytics, role
 from jobmarket_agent.storage.vector_search import run
 
@@ -62,8 +61,8 @@ def make_vector_search(conn) -> Callable[..., list[dict[str, Any]]]:
         query: str,
         *,
         limit: int = 10,
-        seniority: list[Seniority] | None = None,
-        remote: list[Remote] | None = None,
+        seniority: list[Literal["intern", "junior", "mid", "senior", "staff+"]] | None = None,
+        remote: list[Literal["remote", "hybrid", "onsite"]] | None = None,
     ) -> list[dict[str, Any]]:
         """Search roles by semantic similarity to a query.
 

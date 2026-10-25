@@ -52,11 +52,11 @@ def test_per_ip_isolation() -> None:
 
 def test_ask_rate_limited_returns_429() -> None:
     # End-to-end: the dependency is wired to /ask. The first request streams an
-    # error frame (no DB/model in CI) but still 200s; the second trips the cap.
+    # error frame (no DB in CI) but still 200s; the second trips the cap.
     limiter = RateLimiter(max_requests=1, window_seconds=60)
     with TestClient(create_app(rate_limiter=limiter)) as client:
-        first = client.post("/ask", json={"query": "skills"})
-        second = client.post("/ask", json={"query": "skills"})
+        first = client.get("/ask", params={"q": "hello"})
+        second = client.get("/ask", params={"q": "hello"})
     assert first.status_code == 200
     assert second.status_code == 429
     assert "Retry-After" in second.headers

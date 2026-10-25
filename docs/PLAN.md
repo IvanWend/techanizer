@@ -11,8 +11,7 @@ ROADMAP.md.
 
 ## Product scope (what ships)
 
-- **Query menu.** A fixed set of query shapes (plus one free-text semantic search), each answered
-  with a typed payload rendered by the UI — not free markdown.
+- **Query box.** Agent answers with a typed payload rendered by the UI — not free markdown.
 - **Monthly analysis.** Fixed corpus analyses, generated as prose, stored, and shown in both languages.
 - **RU/EN.** UI chrome, prose and tables fully localized.
 - **Deployed demo.** Single VPS, docker-compose.
@@ -76,31 +75,10 @@ ROADMAP.md.
   first column, matched through the surface-form dictionary.
 - RU/EN: chrome now; prose stays EN until the stage-2 locale pass (step 5).
 
-### Menu-driven queries (replaces free-form `/ask`)
-- The query box becomes a **menu of fixed query shapes**, not free text. Each item maps 1:1 to one
-  `analytics`/`vector_search` call plus typed params, so every answer is correct by construction —
-  no intent routing, no fan-out, no silently-wrong answer.
-- **Stage 1 (tool-calling) is dropped for the query path.** The menu choice names the query, so
-  code builds the `Payload` directly (same pattern as the monthly report); only stage 2 writes
-  prose. The visible `Answer` is unchanged.
-- **One free-text param survives:** "roles similar to [phrase]" (vector_search → role_detail).
-  Everything else is a dropdown.
-- Menu items: most-common skills (scope overall / by-seniority / by-remote; seniority; remote),
-  salary by seniority (currency), salary by currency, highest-paid roles (currency), roles similar
-  to a phrase (phrase; seniority?; remote?).
-- Ship filters only where the corpus has enough rows (n≥30): seniority/remote yes; cross
-  seniority×remote×source and "junior salary" (n=4) no.
-- **API contract:** `/ask` sends `{query, params, lang}`, not a free `question`.
-- **Evals:** deterministic graders now test the payload builders (still read the assembled
-  `Answer`); semantic/verbatim map to "roles similar to a phrase". Add out-of-scope probes that
-  must refuse — the current set has none, so it cannot regress the wrong-answer bug.
-- **Extending = add a menu item + a payload builder.** No prompt changes.
-
 ### Monthly report
-- **Current scope only for now** — windowed top skills + salary-by-seniority (USD) +
-  salary-by-currency + highest-paid roles, generated as prose and stored.
-- **Trend is deferred** until the corpus has ≥6 months and the HN September gap is backfilled
-  (audited 2026-10-24: corpus spans 2026-07→10, HN Sep = 0).
+- Two scopes in one payload:
+  - **current** — windowed top skills + salary-by-seniority (USD-stated).
+  - **trend** — monthly buckets over history; a month with `<30 postings` ⇒ refuse and say so.
 - Store the locale-neutral numeric payload + prose per locale in a `reports` table.
 
 ### Localization
@@ -110,9 +88,8 @@ ROADMAP.md.
 
 ### Models
 - CN open-weight only (DeepSeek / Qwen / Kimi), one account.
-- One stage for the query path: code builds the payload, stage-2 prose by locale. The stage-1
-  tool-calling agent is retired (see Menu-driven queries).
-- RU prose model is Kimi, adopted after the A/B; DeepSeek is EN and the fallback.
+- Two stages: stage 1 tool-calling → language-neutral payload; stage 2 prose by locale from config.
+- A/B a RU model after ~10 RU questions on DeepSeek; DeepSeek is the fallback.
 
 ### Evals
 - Existing suite + Russian set + README results table + `/ask` API key.

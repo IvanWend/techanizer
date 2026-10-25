@@ -5,9 +5,9 @@ A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
-## Current state (2026-10-25)
+## Current state (2026-10-20)
 
-- **Techanizer tech job-market analyzer** (menu-driven queries + monthly analysis + RU/EN + deployed demo).
+- **Techanizer market analyzer** (corpus queries + monthly analysis + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
 - **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
@@ -22,17 +22,6 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   top-1). **A/B done:** Kimi won the RU set (30/30 vs DeepSeek 27/30) and is now the RU prose
   model; stage 1 moved flash → `deepseek-v4-pro` (flash drifted on the table contract); prose
   prompt tightened (one-sentence headline, similarity never a fact).
-- **Decision (2026-10-24): free-form `/ask` → menu of fixed query shapes.** The tool-calling stage
-  answered out-of-scope questions with a confident wrong answer ("junior AI skills" → the generic
-  skill table). The menu drops stage 1 and lets code build the payload; the monthly report ships
-  current-scope only. See PLAN "Menu-driven queries" + DECISIONS "Agent".
-- **Menu shipped (2026-10-25).** `agent/menu.py` builds the `Payload` per item — scoped skill
-  frequency (overall / by-seniority / by-remote via two new `analytics` queries), salary-by-seniority
-  and -currency, `top_salaries`, and `similar_roles`; role-level items carry verbatim quotes,
-  aggregates carry facts only. Wire contract is `{query, params, lang}` (POST-only, params 422
-  before DB). Stage 2 prose now receives the localized question (`question_for`). The UI is a rail +
-  dropdown menu. Stage-1 code (`build_agent`/`ask`/`SYSTEM_PROMPT`) is kept until the eval rewrite
-  deletes its last consumer.
 
 ## Phase 1 — Ingestion
 
@@ -95,10 +84,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. **Bug-fixing session** — the user found a few bugs in the menu work; triage and fix first.
-2. **Eval probes + eval rewrite** — out-of-scope questions that must refuse (the current set has
-   none, so it cannot regress the wrong-answer bug); drive the payload builders instead of stage 1,
-   which retires `build_agent`/`ask`/`SYSTEM_PROMPT`.
-3. **Monthly report (current scope)** — top skills + salary-by-seniority/currency + highest-paid,
-   prose EN+RU, `reports` table, `GET /report`.
-4. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
+1. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
+   a `reports` table).
+2. **PLAN step 8** — finish the Techanizer naming pass (ROADMAP Phase 6 "Refactor product naming"
+   still open; the README/package/loop.py half landed in `3bc9cdf` + `a01641c`).

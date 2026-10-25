@@ -31,15 +31,3 @@ export type Answer = {
   tables: Table[]
   quotes: Quote[]
 }
-
-// The fixed query menu. Query names mirror the backend QueryName; params are
-// the typed params each payload builder accepts.
-export type MenuQuery =
-  | 'skills'
-  | 'salary_by_seniority'
-  | 'salary_by_currency'
-  | 'top_salaries'
-  | 'similar_roles'
-
-export type Seniority = 'intern' | 'junior' | 'mid' | 'senior' | 'staff+'
-export type Remote = 'remote' | 'hybrid' | 'onsite'
