@@ -31,6 +31,19 @@ ROADMAP.md.
 - **Trends:** report only, via monthly buckets over all history; never a live-agent concern.
 - `in_window` keys on `posted_at` (not `last_seen`).
 
+### Free-text agent (menu rejected)
+- **`/ask` is free-text, not a menu.** The 5-item menu (2026-10-25) was built, tested, and reverted
+  in `ab7183e` — free-form querying is the product, and a fixed menu trades capability for
+  correctness. The two-stage agent stays: stage 1 tool-calling → `Payload`, stage 2 prose.
+- **Unsupported queries must refuse, not answer wrong.** The 1v/2v failures were a *refusal*
+  failure — "junior AI skills" returned the corpus-wide skill table, silently ignoring `junior` (a
+  real column) and `AI` (no column). The agent refuses out-of-scope queries; an honest "can't
+  answer" beats a confident wrong answer.
+- **Tools optimization, not a menu.** Constrain the tools so the model can't go wrong *or* waste
+  calls: the named-query `Literal` (no SQL crosses the boundary), code-ranked `top_salaries` (no
+  free-styled sort), sequential execution, usage limits. Remaining: tighten tool descriptions
+  (flash drifted on the exact-cells contract) and cap fan-out.
+
 ### Privacy
 - Skip email redaction at ingestion. Consequence on record: HN `raw_text` still contains
   emails/contact, surfaceable via `role_detail`/MCP → note in README "Known limitations".
@@ -100,6 +113,9 @@ ROADMAP.md.
   (quotes are verbatim-grounded, so they're exempt).
 - Cross-language grader = same EN/RU question returns the same `tables` payload (replaces the
   flaky `x3`).
+- **Out-of-scope probes must refuse** — the current set has none, so it cannot regress the
+  wrong-answer bug. Add questions the agent must refuse (off-corpus entities, columns that don't
+  exist) and grade them for refusal.
 
 ### Ops
 - Weekly re-ingestion (`load → extract → embed`) + monthly market analysis job.
@@ -121,6 +137,7 @@ retry loop, `currency_enum` rework (already a strict whitelist).
 | 3 | Skill alias v2 + `/ask` API key | 13–17 |
 | 4 | Scheduler + run-log + live monthly aggregates (remove rollups/purge) | 18–21 |
 | 5 | RU-model A/B + placeholder fidelity + same-tables grader + stage-2 prose locales | 22–27 |
+| 5a | Unsupported-query refusal + tools optimization (stage-1 prompt + out-of-scope probes) | follow-up |
 | 6 | Monthly market analysis job (numeric payload → prose, both locales, stored) | 28–34 |
 | 7 | Deploy + README (results table + architecture + known limitations) + slides | 35–42 |
 | 8 | Techanizer naming refactor across package metadata, CLI text, code comments, and docs; keep database identifiers stable | follow-up |

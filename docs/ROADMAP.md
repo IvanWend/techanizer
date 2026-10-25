@@ -5,10 +5,15 @@ A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
-## Current state (2026-10-20)
+## Current state (2026-10-25)
 
 - **Techanizer market analyzer** (corpus queries + monthly analysis + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
+- **Decision (2026-10-25): free-text `/ask` is the product; the query menu was reverted.** The
+  5-item menu was tested and cut — free-form querying is the point, and a fixed menu trades
+  capability for correctness. The wrong-answer bug it worked around is a *refusal* failure, so the
+  fix is unsupported-query refusal + tighter tools, not a menu (PLAN "Free-text agent", DECISIONS
+  "Agent"). Reverted in `ab7183e`, tree restored to `e86d1d9`.
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
 - **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
   (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
@@ -84,7 +89,11 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
+1. **Unsupported-query refusal** — stage-1 prompt refuses out-of-scope queries; add out-of-scope
+   eval probes that must refuse (the current set has none, so it can't regress the wrong-answer
+   bug).
+2. **Tools optimization** — tighten tool descriptions and fan-out; revisit `tool_calls_limit` and
+   the flash-vs-pro stage-1 split.
+3. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
    a `reports` table).
-2. **PLAN step 8** — finish the Techanizer naming pass (ROADMAP Phase 6 "Refactor product naming"
-   still open; the README/package/loop.py half landed in `3bc9cdf` + `a01641c`).
+4. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
