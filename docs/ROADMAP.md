@@ -5,7 +5,7 @@ A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
-## Current state (2026-10-24)
+## Current state (2026-10-25)
 
 - **Techanizer tech job-market analyzer** (menu-driven queries + monthly analysis + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
@@ -26,6 +26,13 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   answered out-of-scope questions with a confident wrong answer ("junior AI skills" → the generic
   skill table). The menu drops stage 1 and lets code build the payload; the monthly report ships
   current-scope only. See PLAN "Menu-driven queries" + DECISIONS "Agent".
+- **Menu shipped (2026-10-25).** `agent/menu.py` builds the `Payload` per item — scoped skill
+  frequency (overall / by-seniority / by-remote via two new `analytics` queries), salary-by-seniority
+  and -currency, `top_salaries`, and `similar_roles`; role-level items carry verbatim quotes,
+  aggregates carry facts only. Wire contract is `{query, params, lang}` (POST-only, params 422
+  before DB). Stage 2 prose now receives the localized question (`question_for`). The UI is a rail +
+  dropdown menu. Stage-1 code (`build_agent`/`ask`/`SYSTEM_PROMPT`) is kept until the eval rewrite
+  deletes its last consumer.
 
 ## Phase 1 — Ingestion
 
@@ -88,10 +95,10 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. **Menu-driven `/ask`** — replace the free-text box with the 5-item menu; code builds the
-   `Payload`, stage 2 writes prose; wire contract becomes `{query, params, lang}`.
-2. **Eval probes** — out-of-scope questions that must refuse (the current set has none, so it
-   cannot regress the wrong-answer bug).
+1. **Bug-fixing session** — the user found a few bugs in the menu work; triage and fix first.
+2. **Eval probes + eval rewrite** — out-of-scope questions that must refuse (the current set has
+   none, so it cannot regress the wrong-answer bug); drive the payload builders instead of stage 1,
+   which retires `build_agent`/`ask`/`SYSTEM_PROMPT`.
 3. **Monthly report (current scope)** — top skills + salary-by-seniority/currency + highest-paid,
    prose EN+RU, `reports` table, `GET /report`.
 4. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
