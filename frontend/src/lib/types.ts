@@ -30,4 +30,6 @@ export type Answer = {
   key_finding: string
   tables: Table[]
   quotes: Quote[]
+  // Optional so a stale bundle still renders an answer without the field.
+  refused?: boolean
 }

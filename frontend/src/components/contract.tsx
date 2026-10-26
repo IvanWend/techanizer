@@ -234,6 +234,17 @@ function scrollToQuote(id: number) {
 
 export function ContractAnswer({ answer, lang }: { answer: Answer; lang: Lang }) {
   const t = ui[lang]
+  if (answer.refused) {
+    // A refusal is a muted scope message, not an answer: no key_finding, tables
+    // or quotes. The headline is the code-owned localized refusal text.
+    return (
+      <div className="mt-6 border border-[var(--border)] bg-[var(--panel)] px-5 py-6">
+        <h1 className="text-[15px] font-medium leading-[1.4] text-[var(--text-secondary)]">
+          {answer.headline}
+        </h1>
+      </div>
+    )
+  }
   const plugin = makeHighlightPlugin(collectSkills(answer))
   const quotes = answer.quotes.slice(0, MAX_QUOTES)
   return (
