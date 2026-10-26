@@ -5,7 +5,7 @@ A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
-## Current state (2026-10-25)
+## Current state (2026-10-26)
 
 - **Techanizer market analyzer** (corpus queries + monthly analysis + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
@@ -14,6 +14,11 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   capability for correctness. The wrong-answer bug it worked around is a *refusal* failure, so the
   fix is unsupported-query refusal + tighter tools, not a menu (PLAN "Free-text agent", DECISIONS
   "Agent"). Reverted in `ab7183e`, tree restored to `e86d1d9`.
+- **2026-10-26 triage (done):** small-n salary medians gated (`analytics.MIN_SAMPLE=30`, the
+  `unknown` seniority bucket withholds its median too — DECISIONS "Agent"); landing hero pills
+  replaced by a scope greeting; suggestion rail expanded to 3–4 ML-flavoured queries per section
+  (EN/RU, only queries the four canned shapes + `vector_search` can answer). Seniority `unknown`
+  (43%, HN 61%) left as-is on purpose — honest, not a bug.
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
 - **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
   (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
