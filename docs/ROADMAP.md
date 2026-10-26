@@ -19,6 +19,12 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   replaced by a scope greeting; suggestion rail expanded to 3–4 ML-flavoured queries per section
   (EN/RU, only queries the four canned shapes + `vector_search` can answer). Seniority `unknown`
   (43%, HN 61%) left as-is on purpose — honest, not a bug.
+- **2026-10-26 tools optimization (done):** `tool_calls_limit` 15 → 6 (the prompt caps legit use
+  at 4 calls, so 15 only extended a runaway); flash-vs-pro stage-1 split confirmed settled
+  (pro holds the exact-cells contract, extraction stays flash); tool descriptions left as-is
+  (already tight) and tool-result payloads untrimmed — `description`/`employment_type` are kept
+  as grounding-grade data for a future "what does this role do" answer. No new scoped tool shapes
+  (domain/company/percentile splits stay deferred — DECISIONS "Still open").
 - **2026-10-26 refusal (done):** stage-1 `refused` flag on `Payload`/`Answer` + code-owned
   localized message (`locale.REFUSAL`); `compose`/`stream_answer` skip stage-2 prose on refusal.
   Eval adds refusal probes `o1`/`o2`/`o3` (EN) + `ro1` (RU) graded for `refused` AND no
@@ -98,8 +104,6 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. **Tools optimization** — tighten tool descriptions and fan-out; revisit `tool_calls_limit` and
-   the flash-vs-pro stage-1 split.
-2. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
+1. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
    a `reports` table).
-3. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
+2. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
