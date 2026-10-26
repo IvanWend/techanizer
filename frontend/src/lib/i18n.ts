@@ -1,7 +1,8 @@
-// UI chrome and the three suggested questions, both locales. Agent prose and
-// table labels come from the backend. Each suggestion maps to one sql_query —
-// a question the tools cannot answer (geography, trends, role-scoped skills)
-// makes the agent loop until it hits the tool-call cap.
+// UI chrome and the suggested queries, both locales. Agent prose and table
+// labels come from the backend. Every suggestion is a free-text query that fills
+// the input and maps to one sql_query / vector_search — a question the tools
+// cannot answer (geography, trends, role-scoped skills) makes the agent loop
+// until it hits the tool-call cap.
 
 export type Lang = 'en' | 'ru'
 
@@ -43,7 +44,7 @@ const en: Messages = {
   thinking: 'Thinking…',
   emptyTitle: 'Ask about the job market',
   emptyHint:
-    'Questions are answered by an agent over real job postings from four boards.',
+    'Ask about skills, salaries and roles — answered from real postings on HN "Who is Hiring", Remotive, Web3.career and Habr Career over a rolling 90-day window.',
   suggestions: 'SUGGESTED',
   errorTitle: 'Something went wrong',
   errorHint: 'The query could not be completed. Try again.',
@@ -69,7 +70,8 @@ const ru: Messages = {
   complete: 'АНАЛИЗ · ГОТОВО',
   thinking: 'Анализируем…',
   emptyTitle: 'Спросите о рынке труда',
-  emptyHint: 'Агент отвечает на вопросы по реальным вакансиям из четырёх источников.',
+  emptyHint:
+    'Спрашивайте о навыках, зарплатах и ролях — ответы строятся на реальных вакансиях HN "Who is Hiring", Remotive, Web3.career и Habr Career за последние 90 дней.',
   suggestions: 'ПРЕДЛОЖЕННЫЕ',
   errorTitle: 'Что-то пошло не так',
   errorHint: 'Не удалось выполнить запрос. Попробуйте ещё раз.',
@@ -88,13 +90,59 @@ export const ui: Record<Lang, Messages> = { en, ru }
 
 export const questions: Record<Lang, { group: string; items: string[] }[]> = {
   en: [
-    { group: 'SKILLS', items: ['Which skills appear in the most roles?'] },
-    { group: 'SALARIES', items: ['Median USD salary by seniority'] },
-    { group: 'ROLES', items: ['Highest-paid roles in USD'] },
+    {
+      group: 'SKILLS',
+      items: [
+        'How many postings mention Python, and how many SQL?',
+        'How many postings mention PyTorch, and how many TensorFlow?',
+        'Which appears most often — Airflow, Docker, Kubernetes or MLflow?',
+      ],
+    },
+    {
+      group: 'SALARIES',
+      items: [
+        'Median USD salary by level (intern, junior, mid, senior, staff+)',
+        'Median USD salary for senior roles',
+        'Which currency has the most roles with a stated salary?',
+        'How many roles state a salary in USD?',
+      ],
+    },
+    {
+      group: 'ROLES',
+      items: [
+        'Highest-paid roles in USD',
+        'Which posting has the highest salary in USD?',
+        'Find a remote MLOps engineer role and name the company',
+        'Which company posted the closest match to "LLM engineer"?',
+      ],
+    },
   ],
   ru: [
-    { group: 'НАВЫКИ', items: ['Какие навыки упоминаются в наибольшем числе ролей?'] },
-    { group: 'ЗАРПЛАТЫ', items: ['Медианная зарплата в USD по уровню'] },
-    { group: 'РОЛИ', items: ['Самые высокооплачиваемые роли в USD'] },
+    {
+      group: 'НАВЫКИ',
+      items: [
+        'Сколько вакансий упоминают Python, а сколько SQL?',
+        'Сколько вакансий упоминают PyTorch, а сколько TensorFlow?',
+        'Какой из инструментов — Airflow, Docker, Kubernetes или MLflow — упоминается чаще всего?',
+      ],
+    },
+    {
+      group: 'ЗАРПЛАТЫ',
+      items: [
+        'Медианная зарплата в RUB по уровню (intern, junior, mid, senior, staff+)',
+        'Какая медианная зарплата у senior-ролей в RUB?',
+        'В какой валюте указано больше всего ролей с зарплатой?',
+        'Сколько ролей указывают зарплату в RUB?',
+      ],
+    },
+    {
+      group: 'РОЛИ',
+      items: [
+        'Самые высокооплачиваемые роли в RUB',
+        'У какой вакансии самая высокая зарплата в RUB?',
+        'Найди удалённую вакансию MLOps-инженера и назови компанию',
+        'Какая компания разместила ближайшее совпадение с "LLM engineer"?',
+      ],
+    },
   ],
 }

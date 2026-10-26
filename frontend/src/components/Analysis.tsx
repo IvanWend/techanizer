@@ -81,8 +81,6 @@ export function Analysis({ lang }: { lang: Lang }) {
     setStreaming(false)
   }
 
-  const suggestions = questions[lang].flatMap((section) => section.items)
-
   return (
     <div className="flex h-full flex-col">
       <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-3 sm:px-5">
@@ -226,18 +224,6 @@ export function Analysis({ lang }: { lang: Lang }) {
                     <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
                       {t.emptyHint}
                     </p>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {suggestions.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-cyan-400/40 hover:text-[var(--text-primary)]"
-                        onClick={() => run(item)}
-                      >
-                        {item}
-                      </button>
-                    ))}
                   </div>
                 </div>
               )}
