@@ -19,6 +19,10 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   replaced by a scope greeting; suggestion rail expanded to 3–4 ML-flavoured queries per section
   (EN/RU, only queries the four canned shapes + `vector_search` can answer). Seniority `unknown`
   (43%, HN 61%) left as-is on purpose — honest, not a bug.
+- **2026-10-26 refusal (done):** stage-1 `refused` flag on `Payload`/`Answer` + code-owned
+  localized message (`locale.REFUSAL`); `compose`/`stream_answer` skip stage-2 prose on refusal.
+  Eval adds refusal probes `o1`/`o2`/`o3` (EN) + `ro1` (RU) graded for `refused` AND no
+  tables/quotes — 12/12, in-scope subset held (no over-refusal).
 - Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
 - **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
   (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
@@ -94,11 +98,8 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Next
 
-1. **Unsupported-query refusal** — stage-1 prompt refuses out-of-scope queries; add out-of-scope
-   eval probes that must refuse (the current set has none, so it can't regress the wrong-answer
-   bug).
-2. **Tools optimization** — tighten tool descriptions and fan-out; revisit `tool_calls_limit` and
+1. **Tools optimization** — tighten tool descriptions and fan-out; revisit `tool_calls_limit` and
    the flash-vs-pro stage-1 split.
-3. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
+2. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
    a `reports` table).
-4. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
+3. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).

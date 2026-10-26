@@ -1,9 +1,13 @@
+import asyncio
+
+from jobmarket_agent.agent.locale import REFUSAL
 from jobmarket_agent.agent.loop import (
     DEFAULT_STAGE2_MODEL,
     DEFAULT_STAGE2_RU_MODEL,
     assemble,
     build_agent,
     build_prose_agent,
+    compose,
     default_stage2_model,
     prose_model_settings,
     resolve_prose_model,
@@ -23,6 +27,13 @@ def test_stage1_prompt_does_not_invite_tool_fanout() -> None:
     assert "canned analytics" in SYSTEM_PROMPT
     assert "from memory" in SYSTEM_PROMPT
     assert "job-market analyst" in SYSTEM_PROMPT
+
+
+def test_stage1_prompt_has_refusal_rule() -> None:
+    # The wrong-answer bug was a refusal failure: out-of-scope questions returned
+    # the corpus-wide table. The prompt must name the refusal path explicitly.
+    assert "refused=true" in SYSTEM_PROMPT
+    assert "Refuse out-of-scope questions" in SYSTEM_PROMPT
 
 
 def test_build_agent_registers_three_tools() -> None:
@@ -95,3 +106,29 @@ def test_assemble_fills_placeholders_and_attaches_labels() -> None:
     assert ru.tables[0].title == "Самые частые навыки"
     assert en.tables[0].headers == []
     assert en.quotes[0].company == "We The Flywheel"
+
+
+def test_assemble_refusal_returns_localized_message() -> None:
+    # A refused payload has no prose to fill and no data to render: the headline
+    # is the code-owned localized refusal, and the flag rides the wire so the
+    # frontend/eval can tell a refusal from an empty answer.
+    payload = Payload(refused=True)
+    prose = Prose(headline="ignored", key_finding="ignored")
+    en = assemble(payload, prose, "en")
+    ru = assemble(payload, prose, "ru")
+
+    assert en.refused is True and ru.refused is True
+    assert (en.headline, en.key_finding, en.tables, en.quotes) == (REFUSAL["en"], "", [], [])
+    assert (ru.headline, ru.key_finding, ru.tables, ru.quotes) == (REFUSAL["ru"], "", [], [])
+
+
+def test_compose_skips_prose_on_refusal() -> None:
+    # A refused question must not spend a stage-2 request. The prose agent is a
+    # stub whose run() raises, so if compose called it the test would blow up.
+    class RaisingProse:
+        async def run(self, *_args, **_kwargs) -> None:
+            raise AssertionError("prose must not run for a refusal")
+
+    answer = asyncio.run(compose(Payload(refused=True), "en", RaisingProse()))  # type: ignore[arg-type]
+    assert answer.refused is True
+    assert answer.headline == REFUSAL["en"]

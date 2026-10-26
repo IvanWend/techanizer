@@ -32,6 +32,22 @@ TABLE_LABELS: dict[TableSource, dict[Lang, tuple[str, list[str]]]] = {
     },
 }
 
+# The code-owned refusal message, one per locale. When stage 1 sets refused=true,
+# assemble() returns this as the headline and nothing else — the same "code owns
+# labels, model writes only data" split as TABLE_LABELS.
+REFUSAL: dict[Lang, str] = {
+    "en": (
+        "I can't answer that from this corpus. I cover skills, salaries and roles "
+        'from HN "Who is Hiring", Remotive, Web3.career and Habr Career over a '
+        "rolling 90-day window."
+    ),
+    "ru": (
+        "Не могу ответить на это по имеющимся данным. Я отвечаю про навыки, "
+        'зарплаты и роли с четырёх досок вакансий — HN "Who is Hiring", Remotive, '
+        "Web3.career и Habr Career — за последние 90 дней."
+    ),
+}
+
 
 def format_int(value: int | float, lang: Lang) -> str:
     # EN groups thousands with commas (1,604); RU uses spaces (1 604).

@@ -11,7 +11,7 @@ from pydantic_ai.tool_manager import ToolManager
 
 from jobmarket_agent.agent.limits import model_settings, usage_limits
 from jobmarket_agent.agent.locale import Lang
-from jobmarket_agent.agent.loop import assemble, default_stage2_model, run_prose
+from jobmarket_agent.agent.loop import assemble, default_stage2_model, refusal_answer, run_prose
 from jobmarket_agent.agent.schema import Payload, Prose
 
 
@@ -51,6 +51,13 @@ async def stream_answer(
                             payload = ev.result.output
                             if payload is None:
                                 yield sse_event("error", {"message": "no output"})
+                                return
+                            if payload.refused:
+                                # No stage-2 prose for a refusal: the message is
+                                # code-owned and localized, nothing to compose.
+                                yield sse_event(
+                                    "answer", refusal_answer(lang).model_dump(mode="json")
+                                )
                                 return
                             prose = await run_prose(
                                 payload, prose_agent, default_stage2_model(lang)

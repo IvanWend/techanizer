@@ -14,7 +14,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.tool_manager import ToolManager
 
 from jobmarket_agent.agent.limits import model_settings, usage_limits
-from jobmarket_agent.agent.locale import TABLE_LABELS, Lang, fill_placeholders
+from jobmarket_agent.agent.locale import REFUSAL, TABLE_LABELS, Lang, fill_placeholders
 from jobmarket_agent.agent.prompt import SYSTEM_PROMPT, prose_prompt
 from jobmarket_agent.agent.schema import Answer, Payload, Prose, Table, TableSpec
 from jobmarket_agent.agent.tools import make_role_detail, make_sql_query, make_vector_search
@@ -109,7 +109,16 @@ def _table(ts: TableSpec, lang: Lang) -> Table:
     return Table(kind=ts.kind, title=title, headers=headers, rows=ts.rows)
 
 
+def refusal_answer(lang: Lang) -> Answer:
+    # Code-owned and localized: a refusal has no prose to write and no data to
+    # render, so the headline is the whole answer. `refused` marks it for the
+    # frontend and the eval, which grade refusal as the correct outcome.
+    return Answer(refused=True, headline=REFUSAL[lang], key_finding="", tables=[], quotes=[])
+
+
 def assemble(payload: Payload, prose: Prose, lang: Lang) -> Answer:
+    if payload.refused:
+        return refusal_answer(lang)
     return Answer(
         headline=fill_placeholders(prose.headline, payload.facts, lang),
         key_finding=fill_placeholders(prose.key_finding, payload.facts, lang),
@@ -124,6 +133,10 @@ async def compose(
     prose_agent: Agent[None, Prose],
     model: str | None = None,
 ) -> Answer:
+    if payload.refused:
+        # No stage-2 prose call: the refusal message is code-owned, so a refused
+        # question must not spend a prose request (or leak unlocalized text).
+        return refusal_answer(lang)
     resolved = model or default_stage2_model(lang)
     return assemble(payload, await run_prose(payload, prose_agent, resolved), lang)
 

@@ -171,6 +171,20 @@ def test_stream_answer_emits_error_frame() -> None:
     assert _collect(stub, _StubProseAgent(), "q") == ['event: error\ndata: {"message": "boom"}\n\n']
 
 
+def test_stream_answer_emits_refusal_without_prose() -> None:
+    # A refused payload skips stage 2: the single answer frame carries the flag
+    # and the localized refusal message, with no tables/quotes and no tool_call.
+    events: list[object] = [
+        AgentRunResultEvent(result=cast(Any, SimpleNamespace(output=Payload(refused=True)))),
+    ]
+    frames = _collect(_StubStage1Agent(events), _StubProseAgent(), "years of experience?")
+    assert len(frames) == 1
+    data = cast(dict, _frame_data(frames[0]))
+    assert data["refused"] is True
+    assert data["tables"] == [] and data["quotes"] == []
+    assert data["headline"]
+
+
 def test_stream_answer_hides_usage_limit_url() -> None:
     # The exception appends a pydantic docs URL. The frame the UI renders must
     # not carry it — the card already has a short hint.

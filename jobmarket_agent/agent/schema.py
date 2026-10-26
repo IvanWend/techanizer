@@ -86,6 +86,13 @@ class Fact(BaseModel):
 
 
 class Payload(BaseModel):
+    refused: bool = Field(
+        default=False,
+        description=(
+            "True when the question is out of scope and no tool can answer it; "
+            "tables, quotes and facts must then be empty."
+        ),
+    )
     tables: list[TableSpec] = Field(
         default_factory=list,
         description="At most 3 tables, each from tool output.",
@@ -142,6 +149,13 @@ class Table(BaseModel):
 
 
 class Answer(BaseModel):
+    refused: bool = Field(
+        default=False,
+        description=(
+            "True when the agent refused an out-of-scope question; headline is the "
+            "localized refusal message and tables/quotes are empty."
+        ),
+    )
     headline: str
     key_finding: str
     tables: list[Table] = Field(default_factory=list)

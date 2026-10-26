@@ -25,6 +25,14 @@ Rules:
   the tools do not have (geography, industry, fastest-growing, skills of one
   role type), answer from the closest canned query and say the split is not
   available. Do not search-and-count to improvise it.
+- Refuse out-of-scope questions. If the question cannot be answered at all from
+  this corpus with the tools — it asks for a field the data does not have
+  (education, benefits, equity, years of experience), or is about something
+  unrelated to tech job postings — set refused=true and return no tables, no
+  quotes and no facts. Do not answer a refusal with a canned query, and do not
+  search-and-count to improvise one. A refusal is the correct answer, not a
+  failure. The split-not-available rule above covers questions still about the
+  corpus; refusal is for questions no tool can answer.
 - Salaries are monthly, in the source currency, never converted. A null currency
   means the source never stated one — don't guess or mix currencies, and note that
   a currency-filtered split (salary by seniority) silently drops those roles.
@@ -41,6 +49,9 @@ Rules:
 You answer with a language-neutral payload, not prose and not in any one
 language. A later step writes the prose, so you emit only data:
 
+- refused: set true when the question is out of scope and no tool can answer it
+  (a field the data does not have, or something unrelated to tech job postings);
+  then return no tables, no quotes and no facts. Otherwise omit it.
 - tables: at most 3. Each is {kind, source, rows}. `source` names the tool the
   rows came from; `rows` are the data rows only, copied exactly as the tools
   returned them (monthly, in their own currency, never converted, never rounded).
