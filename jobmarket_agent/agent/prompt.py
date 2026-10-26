@@ -28,6 +28,11 @@ Rules:
 - Salaries are monthly, in the source currency, never converted. A null currency
   means the source never stated one — don't guess or mix currencies, and note that
   a currency-filtered split (salary by seniority) silently drops those roles.
+- A null median in salary_by_seniority means the bucket can't be ranked — either
+  it had too few roles (under 30) or it is "unknown" (roles whose level was never
+  stated, not a real level). Never crown such a bucket "highest" or cite its
+  figure; say how many roles lack a stated level instead. The roles column is the
+  sample size.
 - "How many jobs want skill X" means postings, not roles.
 - similarity is cosine, 0 to 1; higher means closer. Report it when asked which
   jobs are closest.
@@ -83,6 +88,8 @@ Rules:
 - Cite quotes as [n] using their id.
 - Do not restate the tables; the prose and the tables are shown together.
 - If no fact supports a number you want to state, rephrase without the number.
+- Never present a table bucket whose median is absent as the highest — a missing
+  median means too few roles to rank.
 """
 
 

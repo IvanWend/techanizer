@@ -96,15 +96,27 @@ GROUP BY 1
 ORDER BY n DESC, s.salary_currency
 """
 
+# A median over a handful of rows is noise, not a signal: one intern posting with
+# a 24k salary would otherwise sort above a staff+ bucket of 68 and get crowned
+# "highest". Gate the median on MIN_SAMPLE roles (the count the table shows), so
+# a small bucket keeps its row (n = coverage) while its median stays NULL and it
+# drops out of any "highest" claim — the same shape as the NULL-currency rule.
+MIN_SAMPLE = 30
+
 # The currency filter is not optional: percentile_cont over a mixed-currency
 # list returns a midpoint that is neither currency (mid = 49 RUB + 41 USD landed
 # at 80,500/mo, above senior's USD median). median_max ignores NULL salary_max,
 # so with_salary still shows coverage even though salary_max IS NOT NULL is absent.
+# "unknown" is roles whose level was never stated, not a level: the row survives
+# (n = coverage) but its median is withheld, like the NULL-currency bucket.
 SALARY_BY_SENIORITY_SQL = f"""
 SELECT s.seniority,
        count(*) AS roles,
        count(s.salary_max) AS with_salary,
-       percentile_cont(0.5) WITHIN GROUP (ORDER BY s.salary_max)::int AS median_max_monthly
+       CASE WHEN s.seniority = 'unknown' OR count(*) < {MIN_SAMPLE}
+            THEN NULL
+            ELSE percentile_cont(0.5) WITHIN GROUP (ORDER BY s.salary_max)::int
+       END AS median_max_monthly
 FROM structured_postings s
 JOIN raw_postings r ON r.id = s.raw_posting_id
 WHERE s.salary_currency = %(currency)s

@@ -180,10 +180,39 @@ async def _grade_d6(conn, a: Answer) -> bool:
 
 
 async def _grade_d7(conn, a: Answer) -> bool:
-    # "unknown" is a data bucket, not a seniority level, so it can't win.
-    rows = [r for r in analytics.salary_by_seniority(conn, "USD") if r.seniority != "unknown"]
+    # "unknown" is a data bucket, not a seniority level, and sub-30 buckets have
+    # their median withheld (analytics.MIN_SAMPLE), so neither can win.
+    rows = [
+        r
+        for r in analytics.salary_by_seniority(conn, "USD")
+        if r.seniority != "unknown" and r.roles >= analytics.MIN_SAMPLE
+    ]
+    if not rows:
+        return True
     top = max(rows, key=lambda r: r.median_max_monthly if r.median_max_monthly is not None else -1)
     return _contains(_all_text(a), top.seniority.rstrip("+"))
+
+
+async def _grade_d10(conn, a: Answer) -> bool:
+    # The small-n regression probe: the headline — the one-sentence direct answer
+    # — must name the honest (n>=30) top and must not crown a sub-30 bucket. The
+    # absence check is whole-word so "mid" doesn't false-positive on "middle".
+    rows = analytics.salary_by_seniority(conn, "USD")
+    rankable = [r for r in rows if r.seniority != "unknown" and r.roles >= analytics.MIN_SAMPLE]
+    if not rankable:
+        return True
+    top = max(
+        rankable, key=lambda r: r.median_max_monthly if r.median_max_monthly is not None else -1
+    )
+    if not _contains(a.headline, top.seniority.rstrip("+")):
+        return False
+    folded = a.headline.casefold()
+    small = [
+        r.seniority.rstrip("+").casefold()
+        for r in rows
+        if r.seniority != "unknown" and r.roles < analytics.MIN_SAMPLE
+    ]
+    return not any(re.search(rf"\b{re.escape(label)}\b", folded) for label in small)
 
 
 async def _grade_d8(conn, a: Answer) -> bool:
@@ -367,6 +396,13 @@ QUESTIONS: list[Question] = [
         "Which posting has the highest salary stated in RUB, "
         "and what monthly figure does it state?",
         _grade_d9,
+    ),
+    Question(
+        "d10",
+        "deterministic",
+        "small-n seniority not crowned highest",
+        "Which seniority level has the highest median USD salary?",
+        _grade_d10,
     ),
     # semantic — graded on provenance
     Question(
