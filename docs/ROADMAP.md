@@ -7,7 +7,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Current state (2026-10-27)
 
-- **Techanizer market analyzer** (corpus queries + live dashboard + RU/EN + deployed demo).
+- **Techanizer market analyzer** (free-text corpus queries + live step checklist + RU/EN).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - **Decision (2026-10-25): free-text `/ask` is the product; the query menu was reverted.** The
   5-item menu was tested and cut — free-form querying is the point, and a fixed menu trades
@@ -42,13 +42,20 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   trend aggregates (`monthly_skill_frequency` / `monthly_salary`); two-stage agent
   (stage 1 tool-calling → language-neutral `Payload`, stage 2 per-locale prose with Kimi RU);
   RU eval set + cross-language grader + refusal probes.
-- **2026-10-27 dashboard + naming (done):** PLAN step 6 (monthly report) cut — a stored
-  pre-generated report duplicates the four canned queries the agent already answers on demand, and
-  the trend half needs ≥6 months of history not yet available. Replaced by a live `/dashboard`
-  endpoint (`GET /dashboard?lang=en|ru`) that runs analytics functions directly (no LLM, no
-  storage) and a Dashboard tab in the frontend rendering summary cards + table panels. The old
-  MonthlyReport tab is deleted. Naming pass done: package `techanizer`, MCP server name,
-  Habr user-agent, README stale text; DB identifiers preserved.
+- **2026-10-27 dashboard + naming (done):** PLAN step 6 (monthly report) cut; naming pass done
+  (package `techanizer`, MCP server name, Habr user-agent, README stale text; DB identifiers
+  preserved). The replacement live dashboard was cut the same day — see next line.
+- **2026-10-27 dashboard removed + streaming UX (done):** the dashboard duplicated the four
+  canned queries the agent answers on demand, and its two honesty-rule rows (NULL-currency
+  bucket, `MIN_SAMPLE`-gated medians) rendered as dash-rows that read as bugs. Removed:
+  `GET /dashboard`, `analytics.corpus_stats`, the Dashboard tab + i18n keys; the UI is the
+  single Analysis screen again. `/ask` gained a `status` frame (phase=prose, before the
+  stage-2 call) and a name-only `tool_return` frame; the frontend renders a step checklist
+  (per-tool pending/done) instead of one replacing status line.
+- **2026-10-27 live deploy cut:** a public demo means a browser-visible `ASK_API_KEY` +
+  paid model keys behind a rate limit — not worth a monthly VPS bill for a portfolio.
+  Ship a README deploy runbook + demo GIF instead (Phase 6); a live link, if ever wanted,
+  goes on Oracle Cloud Always Free after the SiliconFlow embedding migration drops ollama.
 
 ## Phase 1 — Ingestion
 
@@ -94,8 +101,8 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [x] Rate limit + spend cap + max-turns on the agent loop (before public, non-negotiable)
 - [x] Packaging — installable (hatchling + `jobmarket_agent` flat layout); see DECISIONS: Packaging
 - [x] Fresh ingest + extract right before deploy (demo freshness)
-- [ ] Deployment — single VPS + docker-compose (`web` + `ollama`); provider + budget TBD;
-      run the agent eval before/after the provider/model swap
+- [x] **Deployment cut (2026-10-27):** no live VPS — README deploy runbook + demo GIF instead
+      (Phase 6 README task); compose + scheduler stay deploy-ready
 - [x] Scheduled re-ingestion entrypoint — `ops/scheduler.py` (`load → extract → embed`) +
       `ingestion_runs` run-log (PLAN step 4); the cron/timer line is a step-7 deploy concern
 
@@ -110,8 +117,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 ## Next
 
 1. **SiliconFlow embedding migration** — swap ollama `/api/embed` → SiliconFlow
-   `POST /v1/embeddings` (model `BAAI/bge-m3`). Drops the GPU/ollama requirement from the VPS;
-   already have the SiliconFlow key.
-2. **Deploy** (Phase 5) — `docker-compose.yml` `web` service, Alibaba Cloud ECS,
-   TLS reverse proxy, eval before/after, weekly cron line.
-3. **README** (Phase 6) — architecture diagram, eval-results table, Known limitations, demo GIF.
+   `POST /v1/embeddings` (model `BAAI/bge-m3`). Drops the GPU/ollama requirement from any
+   future deploy; already have the SiliconFlow key.
+2. **README** (Phase 6) — architecture diagram, eval-results table, Known limitations, demo
+   GIF + deploy runbook (compose, Caddy TLS, cron line for `ops/scheduler.py`).

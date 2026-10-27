@@ -14,7 +14,8 @@ ROADMAP.md.
 - **Query box.** Agent answers with a typed payload rendered by the UI — not free markdown.
 - **Monthly analysis.** Fixed corpus analyses, generated as prose, stored, and shown in both languages.
 - **RU/EN.** UI chrome, prose and tables fully localized.
-- **Deployed demo.** Single VPS, docker-compose.
+- **Deployable, not deployed.** docker-compose + a README runbook + demo GIF; no live VPS
+  (2026-10-27 — a browser-visible shared key + paid model keys aren't worth a monthly bill).
 
 ## Locked decisions
 
@@ -127,7 +128,9 @@ ROADMAP.md.
 Rollup fix, purge guard (obsolete), FX conversion, cross-source dedup, automated backups, full CI
 eval gate, reproducibility columns, email redaction, a 5th source, resume-matching, hand-rolled
 retry loop, `currency_enum` rework (already a strict whitelist), monthly report (duplicates the
-canned queries the agent already answers; trend half needs ≥6 months of history).
+canned queries the agent already answers; trend half needs ≥6 months of history), live dashboard
+(same duplication; its honesty-rule dash-rows read as bugs), live deployment (runbook + GIF
+instead).
 
 ## Build order (~7 weeks)
 
@@ -139,8 +142,8 @@ canned queries the agent already answers; trend half needs ≥6 months of histor
 | 4 | Scheduler + run-log + live monthly aggregates (remove rollups/purge) | 18–21 |
 | 5 | RU-model A/B + placeholder fidelity + same-tables grader + stage-2 prose locales | 22–27 |
 | 5a | Unsupported-query refusal + tools optimization (stage-1 prompt + out-of-scope probes) | follow-up |
-| 6 | Monthly market analysis job — **cut** (replaced by live `/dashboard` endpoint + Dashboard tab; the stored report duplicates canned queries the agent already answers, and the trend half needs ≥6 months of history) | 28–34 |
-| 7 | Deploy + README (results table + architecture + known limitations) + slides | 35–42 |
+| 6 | Monthly market analysis job — **cut** (replaced by live `/dashboard`, itself cut 2026-10-27: duplicates the canned queries the agent answers on demand; the trend half needs ≥6 months of history) | 28–34 |
+| 7 | README (results table + architecture + known limitations) + demo GIF + deploy runbook — no live deploy | 35–42 |
 | 8 | Techanizer naming refactor — **done** (2026-10-27) | follow-up |
 
 **Cut first if time slips:** monthly analysis *trend* half → scheduler → RU second model (DeepSeek
