@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Analysis } from './components/Analysis'
-import { Dashboard } from './components/Dashboard'
 import { LanguageToggle, ThemeToggle } from './components/chrome'
 import { Icon } from './components/Icon'
 import { ui, type Lang } from './lib/i18n'
 
-type Screen = 'analysis' | 'dashboard'
 type Theme = 'dark' | 'light'
 
 function App() {
@@ -13,7 +11,6 @@ function App() {
     const saved = localStorage.getItem('techanizer-lang')
     return saved === 'ru' ? 'ru' : 'en'
   })
-  const [screen, setScreen] = useState<Screen>('analysis')
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('techanizer-theme')
     if (saved === 'dark' || saved === 'light') return saved
@@ -44,30 +41,6 @@ function App() {
           <span className="hidden font-mono text-[9px] tracking-[0.1em] text-[var(--text-faint)] xl:block">
             {t.intelligence}
           </span>
-          <nav className="ml-1 flex h-full items-center sm:ml-4">
-            <button
-              type="button"
-              className={`h-full border-b px-2 text-[10px] font-medium transition sm:px-3 ${
-                screen === 'analysis'
-                  ? 'border-cyan-400 text-[var(--text-primary)]'
-                  : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
-              }`}
-              onClick={() => setScreen('analysis')}
-            >
-              {t.analysis}
-            </button>
-            <button
-              type="button"
-              className={`h-full border-b px-2 text-[10px] font-medium transition sm:px-3 ${
-                screen === 'dashboard'
-                  ? 'border-cyan-400 text-[var(--text-primary)]'
-                  : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
-              }`}
-              onClick={() => setScreen('dashboard')}
-            >
-              {t.dashboard}
-            </button>
-          </nav>
         </div>
         <div className="flex items-center gap-2">
           <LanguageToggle lang={lang} onChange={setLang} />
@@ -75,11 +48,7 @@ function App() {
         </div>
       </header>
       <div className="min-h-0 flex-1">
-        {screen === 'analysis' ? (
-          <Analysis lang={lang} />
-        ) : (
-          <Dashboard lang={lang} />
-        )}
+        <Analysis lang={lang} />
       </div>
     </main>
   )

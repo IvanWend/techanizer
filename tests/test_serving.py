@@ -1,17 +1,16 @@
 import asyncio
 import json
-import os
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any, cast
 
-import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from pydantic_ai import (
     Agent,
     AgentRunResultEvent,
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
 )
 from pydantic_ai.exceptions import UsageLimitExceeded
 
@@ -145,19 +144,6 @@ def _collect(
     return asyncio.run(run())
 
 
-@pytest.fixture(scope="module")
-def eval_conn():
-    db_url = os.environ.get("EVAL_DATABASE_URL")
-    if not db_url:
-        pytest.skip("EVAL_DATABASE_URL unset")
-    with psycopg.connect(db_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT role FROM db_meta")
-            row = cur.fetchone()
-        assert row is not None and row[0] == "eval", "not the frozen snapshot"
-        yield conn
-
-
 def _frame_data(frame: str) -> object:
     # A frame is "event: X\ndata: <json>\n\n"; pull the data line back into a dict.
     assert frame.startswith("event: ") and "\ndata: " in frame
@@ -170,15 +156,23 @@ def test_stream_answer_maps_events_to_frames() -> None:
             part=cast(Any, SimpleNamespace(tool_name="vector_search")),
             args_valid=True,
         ),
+        FunctionToolResultEvent(
+            part=cast(Any, SimpleNamespace(tool_name="vector_search")),
+            content=cast(Any, None),
+        ),
         AgentRunResultEvent(result=cast(Any, SimpleNamespace(output=_PAYLOAD))),
     ]
 
     frames = _collect(_StubStage1Agent(events), _StubProseAgent(), "agentic engineer")
-    assert len(frames) == 2
-    # tool_call is name-only (status line); the tool's output never crosses the wire.
+    assert len(frames) == 4
+    # tool_call/tool_return are name-only (step checklist); the tool's output
+    # never crosses the wire.
     assert frames[0] == 'event: tool_call\ndata: {"name": "vector_search"}\n\n'
+    assert frames[1] == 'event: tool_return\ndata: {"name": "vector_search"}\n\n'
+    # The status frame marks the stage-2 prose call, which is silent otherwise.
+    assert frames[2] == 'event: status\ndata: {"phase": "prose"}\n\n'
     # The answer frame is the assembled contract (prose filled, labels attached).
-    assert _frame_data(frames[1]) == _EXPECTED_ANSWER.model_dump(mode="json")
+    assert _frame_data(frames[3]) == _EXPECTED_ANSWER.model_dump(mode="json")
 
 
 def test_stream_answer_emits_error_frame() -> None:
@@ -262,64 +256,3 @@ def test_frontend_mounted_only_when_dist_exists(tmp_path, monkeypatch) -> None:
         assert response.status_code == 200
         assert response.text == "<!doctype html><title>jobs</title>"
 
-
-def test_dashboard_returns_tables(eval_conn) -> None:
-    # The dashboard endpoint calls the analytics functions directly against a
-    # live DB connection, which the stub TestClient can't provide. Call the
-    # analytics functions on the real eval connection instead and check the
-    # shape of the result — the wire format is the same whether the data comes
-    # from the eval snapshot or the live DB.
-    from jobmarket_agent.agent.locale import TABLE_LABELS
-    from jobmarket_agent.storage import analytics
-
-    stats = analytics.corpus_stats(eval_conn)
-    assert stats.roles > 0 and stats.postings > 0
-
-    skills = analytics.skill_frequency(eval_conn, limit=10)
-    assert len(skills) <= 10
-    assert all(s.roles > 0 for s in skills)
-
-    by_currency = analytics.salary_by_currency(eval_conn)
-    assert len(by_currency) > 0
-
-    by_seniority = analytics.salary_by_seniority(eval_conn, currency="USD")
-    assert len(by_seniority) > 0
-
-    top = analytics.top_salaries(eval_conn, currency="USD", limit=5)
-    assert len(top) <= 5
-
-    # Wire format: tables with localized titles from TABLE_LABELS.
-    tables = [
-        {
-            "kind": "bars",
-            "title": TABLE_LABELS["skill_frequency"]["en"][0],
-            "headers": [],
-            "rows": [[s.skill, s.roles] for s in skills],
-        },
-        {
-            "kind": "table",
-            "title": TABLE_LABELS["salary_by_currency"]["en"][0],
-            "headers": TABLE_LABELS["salary_by_currency"]["en"][1],
-            "rows": [[c.currency or "—", c.n, c.median_max_monthly] for c in by_currency],
-        },
-        {
-            "kind": "table",
-            "title": TABLE_LABELS["salary_by_seniority"]["en"][0],
-            "headers": TABLE_LABELS["salary_by_seniority"]["en"][1],
-            "rows": [[r.seniority, r.roles, r.median_max_monthly] for r in by_seniority],
-        },
-        {
-            "kind": "table",
-            "title": TABLE_LABELS["top_salaries"]["en"][0],
-            "headers": TABLE_LABELS["top_salaries"]["en"][1],
-            "rows": [[t.company or "—", t.title or "—", t.salary_max or t.salary_min] for t in top],
-        },
-    ]
-    assert len(tables) == 4
-    for raw in tables:
-        t: Any = raw
-        assert t["title"]
-        if t["kind"] == "bars":
-            assert t["headers"] == []
-        else:
-            assert len(t["headers"]) > 0

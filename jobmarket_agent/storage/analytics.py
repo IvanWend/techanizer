@@ -208,28 +208,6 @@ def top_salaries(conn, currency: str = "USD", limit: int = 10) -> list[TopSalary
     return rank_top_salaries(rows, limit)
 
 
-CORPUS_STATS_SQL = f"""
-SELECT count(*) AS roles,
-       count(DISTINCT s.raw_posting_id) AS postings
-FROM structured_postings s
-JOIN raw_postings r ON r.id = s.raw_posting_id
-WHERE {WINDOW_SQL}
-"""
-
-
-class CorpusStats(NamedTuple):
-    roles: int
-    postings: int
-
-
-def corpus_stats(conn) -> CorpusStats:
-    with conn.cursor() as cur:
-        cur.execute(CORPUS_STATS_SQL, {"days": WINDOW_DAYS})
-        row = cur.fetchone()
-        assert row is not None
-        return CorpusStats(*row)
-
-
 def monthly_skill_frequency(conn) -> list[MonthSkill]:
     with conn.cursor() as cur:
         cur.execute(MONTHLY_SKILL_SQL)

@@ -10,13 +10,11 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from jobmarket_agent.agent.locale import TABLE_LABELS, Lang
+from jobmarket_agent.agent.locale import Lang
 from jobmarket_agent.agent.loop import build_agent, build_prose_agent
-from jobmarket_agent.ingestion.retention import WINDOW_DAYS
 from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.rate_limit import RateLimiter
 from jobmarket_agent.serving.sse import error_message, sse_event, stream_answer
-from jobmarket_agent.storage import analytics
 
 load_dotenv()
 
@@ -85,68 +83,6 @@ def create_app(
         return StreamingResponse(
             _stream(request.question, request.lang), media_type="text/event-stream"
         )
-
-    @app.get("/dashboard")
-    def dashboard(lang: Lang = "en"):
-        conn = _connect()
-        try:
-            stats = analytics.corpus_stats(conn)
-            skills = analytics.skill_frequency(conn, limit=10)
-            by_currency = analytics.salary_by_currency(conn)
-            by_seniority = analytics.salary_by_seniority(conn, currency="USD")
-            top = analytics.top_salaries(conn, currency="USD", limit=5)
-
-            def _label(source, lang_key: Lang):
-                title, headers = TABLE_LABELS[source][lang_key]
-                return title, headers
-
-            skill_title, _ = _label("skill_frequency", lang)
-            currency_title, currency_headers = _label("salary_by_currency", lang)
-            seniority_title, seniority_headers = _label("salary_by_seniority", lang)
-            top_title, top_headers = _label("top_salaries", lang)
-
-            tables = [
-                {
-                    "kind": "bars",
-                    "title": skill_title,
-                    "headers": [],
-                    "rows": [[s.skill, s.roles] for s in skills],
-                },
-                {
-                    "kind": "table",
-                    "title": currency_title,
-                    "headers": currency_headers,
-                    "rows": [[c.currency or "—", c.n, c.median_max_monthly] for c in by_currency],
-                },
-                {
-                    "kind": "table",
-                    "title": seniority_title,
-                    "headers": seniority_headers,
-                    "rows": [[r.seniority, r.roles, r.median_max_monthly] for r in by_seniority],
-                },
-                {
-                    "kind": "table",
-                    "title": top_title,
-                    "headers": top_headers,
-                    "rows": [
-                        [
-                            t.company or "—",
-                            t.title or "—",
-                            t.salary_max or t.salary_min,
-                        ]
-                        for t in top
-                    ],
-                },
-            ]
-
-            return {
-                "total_roles": stats.roles,
-                "total_postings": stats.postings,
-                "window_days": WINDOW_DAYS,
-                "tables": tables,
-            }
-        finally:
-            conn.close()
 
     # Mounted last so /health, /ask and the docs routes win; StaticFiles(html=True)
     # serves index.html at "/" for the single-page chat UI. Absent dist/ -> no mount.
