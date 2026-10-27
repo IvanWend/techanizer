@@ -21,8 +21,10 @@ export function Analysis({ lang }: { lang: Lang }) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   // One entry per tool_call, marked done by its tool_return — the run's
-  // step checklist. Cleared when the run ends.
-  const [steps, setSteps] = useState<{ name: string; done: boolean }[]>([])
+  // step checklist. `summary` is the human-readable phrase of what the
+  // agent asked (e.g. "looking for 'remote MLOps engineer'"). Cleared when
+  // the run ends.
+  const [steps, setSteps] = useState<{ name: string; summary: string; done: boolean }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
   const [railOpen, setRailOpen] = useState(true)
@@ -43,8 +45,11 @@ export function Analysis({ lang }: { lang: Lang }) {
   function handleEvent(e: StreamEvent) {
     switch (e.event) {
       case 'tool_call':
-        setSteps((prev) => [...prev, { name: e.data.name, done: false }])
-        setStatus(statusFor(e.data.name, lang))
+        setSteps((prev) => [
+          ...prev,
+          { name: e.data.name, done: false, summary: e.data.summary },
+        ])
+        setStatus(e.data.summary)
         break
       case 'tool_return':
         // Calls pair FIFO: mark the first unresolved step with this tool name.
@@ -223,7 +228,7 @@ export function Analysis({ lang }: { lang: Lang }) {
                       ) : (
                         <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
                       )}
-                      {statusFor(step.name, lang)}
+                      {step.summary || statusFor(step.name, lang)}
                     </li>
                   ))}
                 </ol>
