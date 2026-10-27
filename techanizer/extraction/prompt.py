@@ -13,22 +13,9 @@ Rules:
 - remote_policy / employment_type: answer with a single bare token (remote | hybrid | onsite;
   full-time | part-time | contract). Never copy the posting's own phrasing.
 - seniority: a single bare token — intern | junior | mid | senior | staff+ | unknown. Read it
-  from the title first: Senior/Sr -> "senior", Staff/Principal/Lead/Head/Architect -> "staff+",
-  Mid -> "mid", Junior/Jr -> "junior", Intern -> "intern". When the title does not state a
-  level, you may infer it from the body, but ONLY from an explicit statement about this
-  role's required experience:
-    - "N+ years" / "at least N years" / "N years of experience": N >= 6 -> "senior",
-      N 3-5 -> "mid", N 1-2 -> "junior", N 0 -> "intern".
-    - an explicit level word bound to the role itself ("we are hiring a senior engineer",
-      "staff-level role", "this is a junior position") — NOT company-level words like
-      "senior leadership", "a senior team", or "senior management".
-  Otherwise answer "unknown". Never infer seniority from salary, a tool list, or a
-  description of the company rather than the role.
-- stack: a list of the technologies, languages, frameworks, and tools this role requires or
-  uses — bare tokens ("postgres", "react", "kubernetes", "python"), not prose and not
-  generic words ("code", "software", "cloud", "agile"). Take them from the role's own
-  lines; a technology shared by every role goes on the posting. Omit process words and
-  job titles ("hiring manager", "team lead").
+  from the title, not the description: Senior/Sr -> "senior", Staff/Principal/Lead/Head/
+  Architect -> "staff+", Mid -> "mid", Junior/Jr -> "junior", Intern -> "intern". When the
+  title does not state seniority, answer "unknown" — do not guess it from the description.
 - salary_min / salary_max / salary_period / salary_currency: copy the amounts
   verbatim as written. Never convert.
 - description: text copied character-for-character from the posting describing
