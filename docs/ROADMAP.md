@@ -63,7 +63,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [x] Four board clients: HN (Algolia), Remotive, Web3.career, Habr Career
 - [x] 90-day rolling window filter + idempotent upsert on `(source, external_id)` — `load.py`
 - [x] `retention.py` + `purge.py`, guarded by `db_meta.role='live'` (see GOTCHAS: psycopg / Docker)
-- [x] Frozen eval baseline: `evals/snapshots/2026-08-12_raw.dump` → `techanizer_eval`, `techanizer_ro`
+- [x] Frozen eval baseline: `evals/snapshots/2026-10-27_raw.dump` → `techanizer_eval`, `techanizer_ro`
 - [x] `evals/generate_gold_dataset.py` → `gold_40_candidates.json`, seeded, reruns byte-identical
 
 ## Phase 2 — Extraction + evals
