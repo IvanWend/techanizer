@@ -10,7 +10,6 @@ from pydantic_ai import (
     Agent,
     AgentRunResultEvent,
     FunctionToolCallEvent,
-    FunctionToolResultEvent,
 )
 from pydantic_ai.exceptions import UsageLimitExceeded
 
@@ -18,7 +17,7 @@ from jobmarket_agent.agent.locale import Lang
 from jobmarket_agent.agent.schema import Answer, Payload, Prose, Quote, Table, TableSpec
 from jobmarket_agent.serving.api_key import ApiKey
 from jobmarket_agent.serving.app import app, create_app
-from jobmarket_agent.serving.sse import sse_event, stream_answer, tool_summary
+from jobmarket_agent.serving.sse import sse_event, stream_answer
 
 # Payload values come from the corpus, not invention: gold_40_candidates.json
 # row 1 (hn 48747990, "We The Flywheel") is the posting DECISIONS: schema cites
@@ -153,31 +152,20 @@ def _frame_data(frame: str) -> object:
 def test_stream_answer_maps_events_to_frames() -> None:
     events = [
         FunctionToolCallEvent(
-            part=cast(
-                Any,
-                SimpleNamespace(tool_name="vector_search", args={"query": "agentic engineer"}),
-            ),
-            args_valid=True,
-        ),
-        FunctionToolResultEvent(
             part=cast(Any, SimpleNamespace(tool_name="vector_search")),
-            content=cast(Any, None),
+            args_valid=True,
         ),
         AgentRunResultEvent(result=cast(Any, SimpleNamespace(output=_PAYLOAD))),
     ]
 
     frames = _collect(_StubStage1Agent(events), _StubProseAgent(), "agentic engineer")
-    assert len(frames) == 4
-    # tool_call carries name + a human-readable summary derived from the args.
-    assert _frame_data(frames[0]) == {
-        "name": "vector_search",
-        "summary": "looking for 'agentic engineer'",
-    }
-    assert frames[1] == 'event: tool_return\ndata: {"name": "vector_search"}\n\n'
+    assert len(frames) == 3
+    # tool_call is name-only — the UI maps it to a one-line status phrase.
+    assert frames[0] == 'event: tool_call\ndata: {"name": "vector_search"}\n\n'
     # The status frame marks the stage-2 prose call, which is silent otherwise.
-    assert frames[2] == 'event: status\ndata: {"phase": "prose"}\n\n'
+    assert frames[1] == 'event: status\ndata: {"phase": "prose"}\n\n'
     # The answer frame is the assembled contract (prose filled, labels attached).
-    assert _frame_data(frames[3]) == _EXPECTED_ANSWER.model_dump(mode="json")
+    assert _frame_data(frames[2]) == _EXPECTED_ANSWER.model_dump(mode="json")
 
 
 def test_stream_answer_emits_error_frame() -> None:
@@ -242,49 +230,6 @@ def test_ask_rejects_invalid_lang() -> None:
     with TestClient(create_app(api_key=ApiKey(None))) as client:
         assert client.get("/ask", params={"q": "hi", "lang": "xx"}).status_code == 422
         assert client.post("/ask", json={"question": "hi", "lang": "xx"}).status_code == 422
-
-
-@pytest.mark.parametrize(
-    ("tool_name", "args", "expected"),
-    [
-        (
-            "vector_search",
-            {"query": "remote MLOps engineer"},
-            "looking for 'remote MLOps engineer'",
-        ),
-        (
-            "vector_search",
-            {"query": "Python dev", "seniority": ["senior", "staff+"]},
-            "looking for 'Python dev' · seniority: senior, staff+",
-        ),
-        (
-            "vector_search",
-            {"query": "manager", "remote": ["remote", "hybrid"]},
-            "looking for 'manager' · remote: remote, hybrid",
-        ),
-        (
-            "vector_search",
-            {"query": "data engineer", "seniority": ["mid"], "remote": ["remote"]},
-            "looking for 'data engineer' · seniority: mid · remote: remote",
-        ),
-        ("sql_query", {"query": "skill_frequency", "limit": 10}, "most common skills (top 10)"),
-        ("sql_query", {"query": "salary_by_currency"}, "salaries by currency"),
-        (
-            "sql_query",
-            {"query": "salary_by_seniority", "currency": "RUB"},
-            "salaries by level (RUB)",
-        ),
-        (
-            "sql_query",
-            {"query": "top_salaries", "currency": "USD", "limit": 5},
-            "highest-paid roles (USD, top 5)",
-        ),
-        ("role_detail", {"raw_posting_id": 42, "role_index": 0}, "reading posting #42 role #0"),
-        ("unknown_tool", {}, "unknown_tool"),
-    ],
-)
-def test_tool_summary(tool_name: str, args: dict, expected: str) -> None:
-    assert tool_summary(tool_name, args) == expected
 
 
 def test_frontend_mounted_only_when_dist_exists(tmp_path, monkeypatch) -> None:

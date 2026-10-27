@@ -7,7 +7,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
 ## Current state (2026-10-27)
 
-- **Techanizer market analyzer** (free-text corpus queries + live step checklist + RU/EN).
+- **Techanizer market analyzer** (free-text corpus queries + one-line run status + RU/EN).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - **Decision (2026-10-25): free-text `/ask` is the product; the query menu was reverted.** The
   5-item menu was tested and cut — free-form querying is the point, and a fixed menu trades
@@ -50,8 +50,9 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   bucket, `MIN_SAMPLE`-gated medians) rendered as dash-rows that read as bugs. Removed:
   `GET /dashboard`, `analytics.corpus_stats`, the Dashboard tab + i18n keys; the UI is the
   single Analysis screen again. `/ask` gained a `status` frame (phase=prose, before the
-  stage-2 call) and a name-only `tool_return` frame; the frontend renders a step checklist
-  (per-tool pending/done) instead of one replacing status line.
+  stage-2 call); the UI keeps one replacing status line ("Thinking…" → tool phrase →
+  "Writing the answer…"). A per-call args summary + step checklist were tried and cut the
+  same day — they added noise without insight.
 - **2026-10-27 live deploy cut:** a public demo means a browser-visible `ASK_API_KEY` +
   paid model keys behind a rate limit — not worth a monthly VPS bill for a portfolio.
   Ship a README deploy runbook + demo GIF instead (Phase 6); a live link, if ever wanted,
