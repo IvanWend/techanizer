@@ -20,6 +20,9 @@ export function Analysis({ lang }: { lang: Lang }) {
   const [query, setQuery] = useState(t.defaultQuery)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  // One entry per tool_call, marked done by its tool_return — the run's
+  // step checklist. Cleared when the run ends.
+  const [steps, setSteps] = useState<{ name: string; done: boolean }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
   const [railOpen, setRailOpen] = useState(true)
@@ -40,16 +43,31 @@ export function Analysis({ lang }: { lang: Lang }) {
   function handleEvent(e: StreamEvent) {
     switch (e.event) {
       case 'tool_call':
+        setSteps((prev) => [...prev, { name: e.data.name, done: false }])
         setStatus(statusFor(e.data.name, lang))
+        break
+      case 'tool_return':
+        // Calls pair FIFO: mark the first unresolved step with this tool name.
+        setSteps((prev) => {
+          const named = prev.findIndex((s) => !s.done && s.name === e.data.name)
+          const idx = named >= 0 ? named : prev.findIndex((s) => !s.done)
+          if (idx < 0) return prev
+          return prev.map((s, i) => (i === idx ? { ...s, done: true } : s))
+        })
+        break
+      case 'status':
+        if (e.data.phase === 'prose') setStatus(statusFor('prose', lang))
         break
       case 'answer':
         setAnswer(e.data)
         setStatus(null)
+        setSteps([])
         setStreaming(false)
         break
       case 'error':
         setError(e.data.message)
         setStatus(null)
+        setSteps([])
         setStreaming(false)
         break
     }
@@ -62,6 +80,7 @@ export function Analysis({ lang }: { lang: Lang }) {
     setAnswer(null)
     setError(null)
     setStatus(t.thinking)
+    setSteps([])
     setStreaming(true)
 
     const controller = new AbortController()
@@ -70,6 +89,7 @@ export function Analysis({ lang }: { lang: Lang }) {
       if (controller.signal.aborted) return // cancel is a stop, not an error
       setError(err instanceof Error ? err.message : String(err))
       setStatus(null)
+      setSteps([])
       setStreaming(false)
     })
   }
@@ -78,6 +98,7 @@ export function Analysis({ lang }: { lang: Lang }) {
     controllerRef.current?.abort()
     controllerRef.current = null
     setStatus(null)
+    setSteps([])
     setStreaming(false)
   }
 
@@ -186,6 +207,27 @@ export function Analysis({ lang }: { lang: Lang }) {
               <p className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-primary)]">
                 {status ?? t.thinking}
               </p>
+              {steps.length > 0 && (
+                <ol className="mt-1 space-y-1.5 text-left">
+                  {steps.map((step, i) => (
+                    <li
+                      key={i}
+                      className={`flex items-center gap-2 text-[12px] ${
+                        step.done ? 'text-[var(--text-faint)]' : 'text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      {step.done ? (
+                        <span className="text-cyan-500">
+                          <Icon name="check" size={12} />
+                        </span>
+                      ) : (
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
+                      )}
+                      {statusFor(step.name, lang)}
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           ) : (
             <article className="mx-auto max-w-[820px] px-4 py-7 sm:px-8 sm:py-10">

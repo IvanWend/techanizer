@@ -255,4 +255,3 @@ def test_frontend_mounted_only_when_dist_exists(tmp_path, monkeypatch) -> None:
         response = client.get("/")
         assert response.status_code == 200
         assert response.text == "<!doctype html><title>jobs</title>"
-

@@ -5,6 +5,7 @@ from pydantic_ai import (
     Agent,
     AgentRunResultEvent,
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
 )
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.tool_manager import ToolManager
@@ -43,10 +44,13 @@ async def stream_answer(
                 ) as events:
                     async for ev in events:
                         if isinstance(ev, FunctionToolCallEvent):
-                            # Name only: the UI shows a one-line status; the tool's
-                            # output is never shipped — the contract carries what the
-                            # answer actually depends on.
+                            # Name only: the UI shows a step in a checklist; the
+                            # tool's output is never shipped — the contract
+                            # carries what the answer actually depends on.
                             yield sse_event("tool_call", {"name": ev.part.tool_name})
+                        elif isinstance(ev, FunctionToolResultEvent):
+                            # Marks the step done. Name only, same as the call.
+                            yield sse_event("tool_return", {"name": ev.part.tool_name})
                         elif isinstance(ev, AgentRunResultEvent):
                             payload = ev.result.output
                             if payload is None:
@@ -59,6 +63,9 @@ async def stream_answer(
                                     "answer", refusal_answer(lang).model_dump(mode="json")
                                 )
                                 return
+                            # Stage 2 is a silent multi-second call otherwise —
+                            # tell the UI the tools are done and prose is writing.
+                            yield sse_event("status", {"phase": "prose"})
                             prose = await run_prose(
                                 payload, prose_agent, default_stage2_model(lang)
                             )

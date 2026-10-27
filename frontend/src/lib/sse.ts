@@ -18,11 +18,14 @@ import type { Answer } from './types'
 import type { Lang } from './i18n'
 
 // A discriminated union: `event` tells us which shape `data` has. The render
-// layer matches on `event` to narrow the type. `tool_call` is name-only — it
-// only advances the status line; the answer's content arrives in one `answer`
-// frame carrying the full contract.
+// layer matches on `event` to narrow the type. `tool_call`/`tool_return` are
+// name-only — they advance the step checklist; `status` marks the stage-2 prose
+// call. The answer's content arrives in one `answer` frame carrying the full
+// contract.
 export type StreamEvent =
   | { event: 'tool_call'; data: { name: string } }
+  | { event: 'tool_return'; data: { name: string } }
+  | { event: 'status'; data: { phase: string } }
   | { event: 'answer'; data: Answer }
   | { event: 'error'; data: { message: string } }
 
