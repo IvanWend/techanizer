@@ -1,13 +1,13 @@
 import pytest
 from pydantic import ValidationError
 
-from jobmarket_agent.agent.locale import (
+from techanizer.agent.locale import (
     TABLE_LABELS,
     fill_placeholders,
     format_int,
     format_percent,
 )
-from jobmarket_agent.agent.schema import Fact, Prose, TableSource
+from techanizer.agent.schema import Fact, Prose, TableSource
 
 # Every TableSource must be localizable, or assemble() KeyErrors on a model that
 # names a source the labels table forgot.

@@ -58,7 +58,7 @@ ROW_COLUMNS = "source, external_id, raw_text, posted_at"
 
 
 def assert_eval(conn: psycopg.Connection) -> None:
-    # The mirror of purge.py's 'live' guard. The jobmarket_ro role is what actually
+    # The mirror of purge.py's 'live' guard. The techanizer_ro role is what actually
     # enforces frozen; this documents the intent and fails before a wasted sample if
     # EVAL_DATABASE_URL has drifted to the live rolling database.
     try:

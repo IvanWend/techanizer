@@ -1,6 +1,6 @@
 from pydantic_ai import UsageLimits
 
-from jobmarket_agent.agent.limits import model_settings, usage_limits
+from techanizer.agent.limits import model_settings, usage_limits
 
 
 def test_usage_limits_defaults() -> None:

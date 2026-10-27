@@ -7,8 +7,8 @@ from typing import NamedTuple
 import psycopg
 from dotenv import load_dotenv
 
-from jobmarket_agent.ingestion.retention import WINDOW_DAYS
-from jobmarket_agent.storage.embed import QUERY_INSTRUCTION, embed, to_vector_text
+from techanizer.ingestion.retention import WINDOW_DAYS
+from techanizer.storage.embed import QUERY_INSTRUCTION, embed, to_vector_text
 
 load_dotenv()
 

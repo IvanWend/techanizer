@@ -5,7 +5,7 @@ import psycopg
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
-from jobmarket_agent.agent.tools import (
+from techanizer.agent.tools import (
     QueryName,
     make_role_detail,
     make_sql_query,

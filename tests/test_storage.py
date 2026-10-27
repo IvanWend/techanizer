@@ -6,9 +6,9 @@ from uuid import uuid4
 import psycopg
 import pytest
 
-from jobmarket_agent.ingestion.load import LoadStats
-from jobmarket_agent.ops.run_log import begin_run, end_run
-from jobmarket_agent.storage.analytics import (
+from techanizer.ingestion.load import LoadStats
+from techanizer.ops.run_log import begin_run, end_run
+from techanizer.storage.analytics import (
     MonthSalary,
     MonthSkill,
     TopSalary,
@@ -16,7 +16,7 @@ from jobmarket_agent.storage.analytics import (
     monthly_skill_frequency,
     rank_top_salaries,
 )
-from jobmarket_agent.storage.embed import to_vector_text
+from techanizer.storage.embed import to_vector_text
 
 
 # Serializer output format only — the psycopg round-trip is already proven by

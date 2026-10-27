@@ -14,13 +14,13 @@ from typing import Any, NamedTuple
 import psycopg
 from dotenv import load_dotenv
 
-from jobmarket_agent.extraction.schema import NormalizedPosting, NormalizedRole
-from jobmarket_agent.extraction.source_adapters import (
+from techanizer.extraction.schema import NormalizedPosting, NormalizedRole
+from techanizer.extraction.source_adapters import (
     GroundTruth,
     apply_ground_truth,
     to_extraction_input,
 )
-from jobmarket_agent.extraction.transform import resolve_salary
+from techanizer.extraction.transform import resolve_salary
 
 load_dotenv()
 

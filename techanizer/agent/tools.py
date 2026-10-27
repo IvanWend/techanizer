@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from typing import Any, Literal, assert_never
 
-from jobmarket_agent.storage import analytics, role
-from jobmarket_agent.storage.vector_search import run
+from techanizer.storage import analytics, role
+from techanizer.storage.vector_search import run
 
 # The whitelist is the type: the model can only name one of these four, and
 # pydantic-ai rejects anything else before it reaches this function. No SQL

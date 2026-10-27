@@ -26,7 +26,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: uv run mypy jobmarket_agent tests
+        entry: uv run mypy techanizer tests
         language: system
         types: [python]
         pass_filenames: false

@@ -5,8 +5,8 @@ import pytest
 from dotenv import load_dotenv
 from pydantic_ai import Tool
 
-from jobmarket_agent.agent.tools import make_role_detail, make_sql_query, make_vector_search
-from jobmarket_agent.storage.embed import EMBED_DIM
+from techanizer.agent.tools import make_role_detail, make_sql_query, make_vector_search
+from techanizer.storage.embed import EMBED_DIM
 
 load_dotenv()
 
@@ -167,7 +167,7 @@ def test_vector_search_schema_contract() -> None:
 
 
 def test_vector_search_shape(eval_conn, monkeypatch) -> None:
-    monkeypatch.setattr("jobmarket_agent.storage.vector_search.embed", _fake_embed)
+    monkeypatch.setattr("techanizer.storage.vector_search.embed", _fake_embed)
     rows = make_vector_search(eval_conn)(query="distributed systems engineer", limit=5)
     assert 0 < len(rows) <= 5
     for r in rows:
@@ -178,7 +178,7 @@ def test_vector_search_shape(eval_conn, monkeypatch) -> None:
 
 
 def test_vector_search_seniority_filter(eval_conn, monkeypatch) -> None:
-    monkeypatch.setattr("jobmarket_agent.storage.vector_search.embed", _fake_embed)
+    monkeypatch.setattr("techanizer.storage.vector_search.embed", _fake_embed)
     rows = make_vector_search(eval_conn)(
         query="frontend engineer", limit=10, seniority=["senior", "staff+"]
     )

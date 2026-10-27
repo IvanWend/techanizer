@@ -11,19 +11,19 @@ jobs:
     permissions:
       contents: read
     env:
-      DATABASE_URL: postgresql://jobmarket:devpassword@localhost:5432/jobmarket
-      EVAL_DATABASE_URL: postgresql://jobmarket:devpassword@localhost:5432/jobmarket
+      DATABASE_URL: postgresql://techanizer:devpassword@localhost:5432/techanizer
+      EVAL_DATABASE_URL: postgresql://techanizer:devpassword@localhost:5432/techanizer
     services:
       postgres:
         image: pgvector/pgvector:pg17
         env:
-          POSTGRES_USER: jobmarket
+          POSTGRES_USER: techanizer
           POSTGRES_PASSWORD: devpassword
-          POSTGRES_DB: jobmarket
+          POSTGRES_DB: techanizer
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U jobmarket"
+          --health-cmd "pg_isready -U techanizer"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -37,8 +37,8 @@ jobs:
 
       - run: uv sync --locked
 
-      - run: uv run ruff check jobmarket_agent/ evals/ tests/
-      - run: uv run mypy jobmarket_agent/ tests/
+      - run: uv run ruff check techanizer/ evals/ tests/
+      - run: uv run mypy techanizer/ tests/
 
       # psycopg is already a dependency; applying SQL over it avoids an apt
       # install of postgresql-client. autocommit=True so the schema files' own

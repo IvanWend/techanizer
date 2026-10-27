@@ -4,7 +4,7 @@
 --
 -- ORDER MATTERS: Postgres validates a new CHECK against existing rows, so this
 -- file fails while any adzuna row is still in the table. Run the purge first
--- (python -m jobmarket_agent.ingestion.purge). Adzuna's rows are not lost — they live on in
+-- (python -m techanizer.ingestion.purge). Adzuna's rows are not lost — they live on in
 -- evals/snapshots/*.dump and stay valid as eval inputs.
 -- Re-runnable: applying twice is a no-op.
 

@@ -10,11 +10,11 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from jobmarket_agent.agent.locale import Lang
-from jobmarket_agent.agent.loop import build_agent, build_prose_agent
-from jobmarket_agent.serving.api_key import ApiKey
-from jobmarket_agent.serving.rate_limit import RateLimiter
-from jobmarket_agent.serving.sse import error_message, sse_event, stream_answer
+from techanizer.agent.locale import Lang
+from techanizer.agent.loop import build_agent, build_prose_agent
+from techanizer.serving.api_key import ApiKey
+from techanizer.serving.rate_limit import RateLimiter
+from techanizer.serving.sse import error_message, sse_event, stream_answer
 
 load_dotenv()
 

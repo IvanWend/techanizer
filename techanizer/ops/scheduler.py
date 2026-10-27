@@ -8,30 +8,30 @@ from uuid import UUID, uuid4
 import psycopg
 from dotenv import load_dotenv
 
-from jobmarket_agent.extraction.pipeline import (
+from techanizer.extraction.pipeline import (
     Stats as ExtractionStats,
 )
-from jobmarket_agent.extraction.pipeline import (
+from techanizer.extraction.pipeline import (
     build_agent as build_extractor,
 )
-from jobmarket_agent.extraction.pipeline import (
+from techanizer.extraction.pipeline import (
     configure_tracing,
 )
-from jobmarket_agent.extraction.pipeline import (
+from techanizer.extraction.pipeline import (
     pending as pending_extractions,
 )
-from jobmarket_agent.extraction.pipeline import (
+from techanizer.extraction.pipeline import (
     run as run_extraction,
 )
-from jobmarket_agent.extraction.prompt import SYSTEM_PROMPT
-from jobmarket_agent.ingestion.load import LoadStats, load_all
-from jobmarket_agent.storage.embed import (
+from techanizer.extraction.prompt import SYSTEM_PROMPT
+from techanizer.ingestion.load import LoadStats, load_all
+from techanizer.storage.embed import (
     Stats as EmbedStats,
 )
-from jobmarket_agent.storage.embed import (
+from techanizer.storage.embed import (
     pending as pending_embeddings,
 )
-from jobmarket_agent.storage.embed import (
+from techanizer.storage.embed import (
     run as run_embedding,
 )
 

@@ -2,7 +2,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from jobmarket_agent.extraction.normalize import (
+from techanizer.extraction.normalize import (
     Employment,
     RemotePolicy,
     Seniority,

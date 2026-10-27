@@ -9,10 +9,10 @@ from pydantic_ai import (
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.tool_manager import ToolManager
 
-from jobmarket_agent.agent.limits import model_settings, usage_limits
-from jobmarket_agent.agent.locale import Lang
-from jobmarket_agent.agent.loop import assemble, default_stage2_model, refusal_answer, run_prose
-from jobmarket_agent.agent.schema import Payload, Prose
+from techanizer.agent.limits import model_settings, usage_limits
+from techanizer.agent.locale import Lang
+from techanizer.agent.loop import assemble, default_stage2_model, refusal_answer, run_prose
+from techanizer.agent.schema import Payload, Prose
 
 
 def sse_event(event: str, data: object) -> str:

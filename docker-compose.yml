@@ -1,20 +1,23 @@
+name: techanizer
+
 services:
   db:
     image: pgvector/pgvector:pg17
     environment:
-      POSTGRES_USER: jobmarket
+      POSTGRES_USER: techanizer
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
-      POSTGRES_DB: jobmarket
+      POSTGRES_DB: techanizer
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jobmarket"]
+      test: ["CMD-SHELL", "pg_isready -U techanizer"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 volumes:
   pgdata:
+    name: techanizer_pgdata

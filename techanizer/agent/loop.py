@@ -13,11 +13,11 @@ from pydantic_ai.providers.moonshotai import MoonshotAIProvider
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.tool_manager import ToolManager
 
-from jobmarket_agent.agent.limits import model_settings, usage_limits
-from jobmarket_agent.agent.locale import REFUSAL, TABLE_LABELS, Lang, fill_placeholders
-from jobmarket_agent.agent.prompt import SYSTEM_PROMPT, prose_prompt
-from jobmarket_agent.agent.schema import Answer, Payload, Prose, Table, TableSpec
-from jobmarket_agent.agent.tools import make_role_detail, make_sql_query, make_vector_search
+from techanizer.agent.limits import model_settings, usage_limits
+from techanizer.agent.locale import REFUSAL, TABLE_LABELS, Lang, fill_placeholders
+from techanizer.agent.prompt import SYSTEM_PROMPT, prose_prompt
+from techanizer.agent.schema import Answer, Payload, Prose, Table, TableSpec
+from techanizer.agent.tools import make_role_detail, make_sql_query, make_vector_search
 
 load_dotenv()
 

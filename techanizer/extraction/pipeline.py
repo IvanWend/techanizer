@@ -16,14 +16,14 @@ from dotenv import load_dotenv
 from langfuse import Langfuse, get_client, propagate_attributes
 from pydantic_ai import Agent, AgentRunError, UnexpectedModelBehavior
 
-from jobmarket_agent.extraction.prompt import SYSTEM_PROMPT
-from jobmarket_agent.extraction.schema import DocType, NormalizedRole, PostingExtraction
-from jobmarket_agent.extraction.source_adapters import (
+from techanizer.extraction.prompt import SYSTEM_PROMPT
+from techanizer.extraction.schema import DocType, NormalizedRole, PostingExtraction
+from techanizer.extraction.source_adapters import (
     ExtractionInput,
     apply_ground_truth,
     to_extraction_input,
 )
-from jobmarket_agent.extraction.transform import transform
+from techanizer.extraction.transform import transform
 
 load_dotenv()
 

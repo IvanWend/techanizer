@@ -63,7 +63,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [x] Four board clients: HN (Algolia), Remotive, Web3.career, Habr Career
 - [x] 90-day rolling window filter + idempotent upsert on `(source, external_id)` — `load.py`
 - [x] `retention.py` + `purge.py`, guarded by `db_meta.role='live'` (see GOTCHAS: psycopg / Docker)
-- [x] Frozen eval baseline: `evals/snapshots/2026-08-12_raw.dump` → `jobmarket_eval`, `jobmarket_ro`
+- [x] Frozen eval baseline: `evals/snapshots/2026-08-12_raw.dump` → `techanizer_eval`, `techanizer_ro`
 - [x] `evals/generate_gold_dataset.py` → `gold_40_candidates.json`, seeded, reruns byte-identical
 
 ## Phase 2 — Extraction + evals
@@ -72,7 +72,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [x] Pipeline — `pending`/`build_agent`/`extract`/`persist`, chunked `run`, Langfuse tracing
 - [x] Corpus pass + repairs — pilot, then all 1,098 rows → 1,663 roles; `apply_ground_truth`, `backfill.py`
 - [x] Tests — `test_normalize` / `test_transform` / `test_source_adapters` / `test_schema` + fixtures
-- [x] Eval + freeze — `gold_labeled.json`, `eval_extraction.py` (prompt 2×, seniority 68→93%), re-snapshot → `jobmarket_eval`
+- [x] Eval + freeze — `gold_labeled.json`, `eval_extraction.py` (prompt 2×, seniority 68→93%), re-snapshot → `techanizer_eval`
 
 ## Phase 3 — Storage + retrieval
 
@@ -94,13 +94,13 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 ## Phase 5 — Distribution & ops
 
 - [x] CI — ruff + mypy + pytest over pgvector + curated fixture (`export_ci_fixture.py`)
-- [x] MCP server — `jobmarket_agent/mcp/server.py` (FastMCP 1.29), 3 tools, direct DB
+- [x] MCP server — `techanizer/mcp/server.py` (FastMCP 1.29), 3 tools, direct DB
 - [x] Frontend — Techanizer UI (React + Vite + Tailwind v4, Figma design merged): query box,
-      Analysis/Dashboard tabs, RU/EN chrome, dark/light; renders structured tool output +
+      single Analysis screen, RU/EN chrome, dark/light; renders structured tool output +
       highlighted prose; hand-written SSE client; served from FastAPI `StaticFiles` mounted only
       when `dist/` exists (CI has no build)
 - [x] Rate limit + spend cap + max-turns on the agent loop (before public, non-negotiable)
-- [x] Packaging — installable (hatchling + `jobmarket_agent` flat layout); see DECISIONS: Packaging
+- [x] Packaging — installable (hatchling + `techanizer` flat layout); see DECISIONS: Packaging
 - [x] Fresh ingest + extract right before deploy (demo freshness)
 - [x] **Deployment cut (2026-10-27):** no live VPS — README deploy runbook + demo GIF instead
       (Phase 6 README task); compose + scheduler stay deploy-ready

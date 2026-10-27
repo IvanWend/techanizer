@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from jobmarket_agent.extraction.normalize import (
+from techanizer.extraction.normalize import (
     Employment,
     RemotePolicy,
     Seniority,
@@ -16,7 +16,7 @@ from jobmarket_agent.extraction.normalize import (
     seniority_enum,
     to_monthly,
 )
-from jobmarket_agent.extraction.schema import DocType, NormalizedPosting, NormalizedRole
+from techanizer.extraction.schema import DocType, NormalizedPosting, NormalizedRole
 
 # Unambiguous only. Anything needing judgment is doc_type's job, where the
 # mistake is scored instead of invisible.

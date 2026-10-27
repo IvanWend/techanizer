@@ -7,7 +7,7 @@ from typing import NamedTuple
 import psycopg
 from dotenv import load_dotenv
 
-from jobmarket_agent.ingestion.retention import WINDOW_DAYS
+from techanizer.ingestion.retention import WINDOW_DAYS
 
 load_dotenv()
 

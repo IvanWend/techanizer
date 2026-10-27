@@ -1,6 +1,6 @@
 from typing import Any
 
-from jobmarket_agent.extraction.normalize import (
+from techanizer.extraction.normalize import (
     currency_enum,
     employment_enum,
     normalize_stack,
@@ -10,7 +10,7 @@ from jobmarket_agent.extraction.normalize import (
     seniority_enum,
     to_monthly,
 )
-from jobmarket_agent.extraction.schema import (
+from techanizer.extraction.schema import (
     SALARY_QUOTE_KEY,
     NormalizedPosting,
     NormalizedRole,

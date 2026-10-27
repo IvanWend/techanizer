@@ -11,17 +11,17 @@ from uuid import UUID
 import psycopg
 from dotenv import load_dotenv
 
-from jobmarket_agent.ingestion.habr_client import HABR_DELAY_S, HABR_LIST_URL
-from jobmarket_agent.ingestion.habr_client import fetch_description_html as fetch_habr_description
-from jobmarket_agent.ingestion.habr_client import fetch_vacancy_cards as fetch_habr_cards
-from jobmarket_agent.ingestion.habr_client import new_session as new_habr_session
-from jobmarket_agent.ingestion.hn_client import HNThread, fetch_thread, find_hiring_threads
-from jobmarket_agent.ingestion.remotive_client import REMOTIVE_ENDPOINT_URL
-from jobmarket_agent.ingestion.remotive_client import fetch_latest_jobs as fetch_remotive_jobs
-from jobmarket_agent.ingestion.retention import WINDOW_DAYS, window_cutoff
-from jobmarket_agent.ingestion.web3_client import WEB3_ENDPOINT_URL
-from jobmarket_agent.ingestion.web3_client import fetch_latest_jobs as fetch_web3_jobs
-from jobmarket_agent.ops.run_log import begin_run, end_run
+from techanizer.ingestion.habr_client import HABR_DELAY_S, HABR_LIST_URL
+from techanizer.ingestion.habr_client import fetch_description_html as fetch_habr_description
+from techanizer.ingestion.habr_client import fetch_vacancy_cards as fetch_habr_cards
+from techanizer.ingestion.habr_client import new_session as new_habr_session
+from techanizer.ingestion.hn_client import HNThread, fetch_thread, find_hiring_threads
+from techanizer.ingestion.remotive_client import REMOTIVE_ENDPOINT_URL
+from techanizer.ingestion.remotive_client import fetch_latest_jobs as fetch_remotive_jobs
+from techanizer.ingestion.retention import WINDOW_DAYS, window_cutoff
+from techanizer.ingestion.web3_client import WEB3_ENDPOINT_URL
+from techanizer.ingestion.web3_client import fetch_latest_jobs as fetch_web3_jobs
+from techanizer.ops.run_log import begin_run, end_run
 
 load_dotenv()
 

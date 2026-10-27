@@ -15,15 +15,15 @@ from pydantic_ai.models import infer_model
 from pydantic_ai.providers.moonshotai import MoonshotAIProvider
 from pydantic_ai.settings import ModelSettings
 
-from jobmarket_agent.agent.loop import (
+from techanizer.agent.loop import (
     DEFAULT_STAGE1_MODEL,
     ask,
     build_agent,
     build_prose_agent,
     compose,
 )
-from jobmarket_agent.agent.schema import Answer, Payload
-from jobmarket_agent.storage import analytics
+from techanizer.agent.schema import Answer, Payload
+from techanizer.storage import analytics
 
 load_dotenv()
 
@@ -756,7 +756,7 @@ def report(rows: list[Row], verbose: bool = False) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Agent eval over the frozen jobmarket_eval")
+    parser = argparse.ArgumentParser(description="Agent eval over the frozen techanizer_eval")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument(
         "--prose-model",

@@ -1,7 +1,7 @@
 import re
 from typing import Literal
 
-from jobmarket_agent.agent.schema import Fact, TableSource
+from techanizer.agent.schema import Fact, TableSource
 
 Lang = Literal["en", "ru"]
 

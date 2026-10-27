@@ -1,7 +1,7 @@
 import asyncio
 
-from jobmarket_agent.agent.locale import REFUSAL
-from jobmarket_agent.agent.loop import (
+from techanizer.agent.locale import REFUSAL
+from techanizer.agent.loop import (
     DEFAULT_STAGE2_MODEL,
     DEFAULT_STAGE2_RU_MODEL,
     assemble,
@@ -12,8 +12,8 @@ from jobmarket_agent.agent.loop import (
     prose_model_settings,
     resolve_prose_model,
 )
-from jobmarket_agent.agent.prompt import SYSTEM_PROMPT
-from jobmarket_agent.agent.schema import Fact, Payload, Prose, Quote, TableSpec
+from techanizer.agent.prompt import SYSTEM_PROMPT
+from techanizer.agent.schema import Fact, Payload, Prose, Quote, TableSpec
 
 
 def test_stage1_prompt_does_not_invite_tool_fanout() -> None:

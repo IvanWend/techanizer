@@ -5,8 +5,8 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from jobmarket_agent.serving.app import create_app
-from jobmarket_agent.serving.rate_limit import RateLimiter
+from techanizer.serving.app import create_app
+from techanizer.serving.rate_limit import RateLimiter
 
 
 def _req(host: str) -> Any:

@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from jobmarket_agent.extraction.normalize import (
+from techanizer.extraction.normalize import (
     Employment,
     RemotePolicy,
     Seniority,

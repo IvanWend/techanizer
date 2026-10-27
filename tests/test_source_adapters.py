@@ -1,7 +1,7 @@
 import pytest
 
-from jobmarket_agent.extraction.schema import NormalizedPosting, NormalizedRole
-from jobmarket_agent.extraction.source_adapters import GroundTruth, apply_ground_truth
+from techanizer.extraction.schema import NormalizedPosting, NormalizedRole
+from techanizer.extraction.source_adapters import GroundTruth, apply_ground_truth
 
 # Habr external_id 1000167887 in evals/gold_40_candidates.json, run through
 # to_extraction_input. None of it reaches the model: the prompt only ever sees
