@@ -2730,57 +2730,6 @@ wheels = [
 ]
 
 [[package]]
-name = "remote-job-search-agent"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "beautifulsoup4" },
-    { name = "fastapi" },
-    { name = "jupyterlab" },
-    { name = "langfuse" },
-    { name = "mcp" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "pydantic-ai" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-    { name = "uvicorn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "types-beautifulsoup4" },
-    { name = "types-requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "beautifulsoup4", specifier = ">=4.15.0" },
-    { name = "fastapi", specifier = ">=0.141.1" },
-    { name = "jupyterlab", specifier = ">=4.6.2" },
-    { name = "langfuse", specifier = ">=4.14.5" },
-    { name = "mcp", specifier = ">=1.29.0" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
-    { name = "pydantic-ai", specifier = ">=2.24.0" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "requests", specifier = ">=2.34.2" },
-    { name = "uvicorn", specifier = ">=0.52.1" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=2.3.0" },
-    { name = "pre-commit", specifier = ">=4.6.2" },
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "ruff", specifier = ">=0.16.0" },
-    { name = "types-beautifulsoup4", specifier = ">=4.12.0.20250516" },
-    { name = "types-requests", specifier = ">=2.33.0.20260712" },
-]
-
-[[package]]
 name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3049,6 +2998,57 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/16/dc49e4b9d348b0f0567a67613a946f4e26b3299408ccf78df318c51a2aec/starlette-1.4.0.tar.gz", hash = "sha256:ecf3a067176d63c6412f98c660dab3355b525584d3725c0c40a4519d33ec2130", size = 2708995, upload-time = "2026-08-05T09:36:43.693Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/f6/7916cd7717e196bba370c0f17abb30466014ce29094665c3581e51a8c24b/starlette-1.4.0-py3-none-any.whl", hash = "sha256:cacd43738e07b834844e2c8e97b898b40089d74f2678234b0a3e93cd3d515813", size = 74021, upload-time = "2026-08-05T09:36:41.944Z" },
+]
+
+[[package]]
+name = "techanizer"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "fastapi" },
+    { name = "jupyterlab" },
+    { name = "langfuse" },
+    { name = "mcp" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic-ai" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "types-beautifulsoup4" },
+    { name = "types-requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.15.0" },
+    { name = "fastapi", specifier = ">=0.141.1" },
+    { name = "jupyterlab", specifier = ">=4.6.2" },
+    { name = "langfuse", specifier = ">=4.14.5" },
+    { name = "mcp", specifier = ">=1.29.0" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
+    { name = "pydantic-ai", specifier = ">=2.24.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "requests", specifier = ">=2.34.2" },
+    { name = "uvicorn", specifier = ">=0.52.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=2.3.0" },
+    { name = "pre-commit", specifier = ">=4.6.2" },
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "ruff", specifier = ">=0.16.0" },
+    { name = "types-beautifulsoup4", specifier = ">=4.12.0.20250516" },
+    { name = "types-requests", specifier = ">=2.33.0.20260712" },
 ]
 
 [[package]]

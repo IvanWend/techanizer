@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Analysis } from './components/Analysis'
-import { MonthlyReport } from './components/MonthlyReport'
+import { Dashboard } from './components/Dashboard'
 import { LanguageToggle, ThemeToggle } from './components/chrome'
 import { Icon } from './components/Icon'
 import { ui, type Lang } from './lib/i18n'
 
-type Screen = 'analysis' | 'report'
+type Screen = 'analysis' | 'dashboard'
 type Theme = 'dark' | 'light'
 
 function App() {
@@ -59,13 +59,13 @@ function App() {
             <button
               type="button"
               className={`h-full border-b px-2 text-[10px] font-medium transition sm:px-3 ${
-                screen === 'report'
+                screen === 'dashboard'
                   ? 'border-cyan-400 text-[var(--text-primary)]'
                   : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }`}
-              onClick={() => setScreen('report')}
+              onClick={() => setScreen('dashboard')}
             >
-              {t.monthly}
+              {t.dashboard}
             </button>
           </nav>
         </div>
@@ -78,7 +78,7 @@ function App() {
         {screen === 'analysis' ? (
           <Analysis lang={lang} />
         ) : (
-          <MonthlyReport lang={lang} />
+          <Dashboard lang={lang} />
         )}
       </div>
     </main>

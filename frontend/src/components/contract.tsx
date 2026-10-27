@@ -232,6 +232,8 @@ function scrollToQuote(id: number) {
   document.getElementById(`quote-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
+export { Bars, DataTable, TablePanel }
+
 export function ContractAnswer({ answer, lang }: { answer: Answer; lang: Lang }) {
   const t = ui[lang]
   if (answer.refused) {

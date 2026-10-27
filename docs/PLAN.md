@@ -126,7 +126,8 @@ ROADMAP.md.
 
 Rollup fix, purge guard (obsolete), FX conversion, cross-source dedup, automated backups, full CI
 eval gate, reproducibility columns, email redaction, a 5th source, resume-matching, hand-rolled
-retry loop, `currency_enum` rework (already a strict whitelist).
+retry loop, `currency_enum` rework (already a strict whitelist), monthly report (duplicates the
+canned queries the agent already answers; trend half needs ≥6 months of history).
 
 ## Build order (~7 weeks)
 
@@ -138,9 +139,9 @@ retry loop, `currency_enum` rework (already a strict whitelist).
 | 4 | Scheduler + run-log + live monthly aggregates (remove rollups/purge) | 18–21 |
 | 5 | RU-model A/B + placeholder fidelity + same-tables grader + stage-2 prose locales | 22–27 |
 | 5a | Unsupported-query refusal + tools optimization (stage-1 prompt + out-of-scope probes) | follow-up |
-| 6 | Monthly market analysis job (numeric payload → prose, both locales, stored) | 28–34 |
+| 6 | Monthly market analysis job — **cut** (replaced by live `/dashboard` endpoint + Dashboard tab; the stored report duplicates canned queries the agent already answers, and the trend half needs ≥6 months of history) | 28–34 |
 | 7 | Deploy + README (results table + architecture + known limitations) + slides | 35–42 |
-| 8 | Techanizer naming refactor across package metadata, CLI text, code comments, and docs; keep database identifiers stable | follow-up |
+| 8 | Techanizer naming refactor — **done** (2026-10-27) | follow-up |
 
 **Cut first if time slips:** monthly analysis *trend* half → scheduler → RU second model (DeepSeek
 prose both locales).

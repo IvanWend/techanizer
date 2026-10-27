@@ -13,9 +13,8 @@ into structured, searchable data and answers questions such as:
 
 This is a production-oriented project for integrating AI into a real data
 pipeline. The source mix is intentionally heterogeneous; it is not intended to be
-a statistically representative model of the whole labor market. Techanizer answers
-questions about the corpus and provides recurring monthly market analysis; the
-monthly analysis implementation is still planned.
+a statistically representative model of the whole labor market. Techanizer answers questions about the corpus and provides a live market
+dashboard.
 
 ## What is implemented
 

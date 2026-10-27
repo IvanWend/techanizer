@@ -5,9 +5,9 @@ A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources
 **Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
 Decisions go in DECISIONS.md. Nothing here restates what the code says.
 
-## Current state (2026-10-26)
+## Current state (2026-10-27)
 
-- **Techanizer market analyzer** (corpus queries + monthly analysis + RU/EN + deployed demo).
+- **Techanizer market analyzer** (corpus queries + live dashboard + RU/EN + deployed demo).
   Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
 - **Decision (2026-10-25): free-text `/ask` is the product; the query menu was reverted.** The
   5-item menu was tested and cut — free-form querying is the point, and a fixed menu trades
@@ -35,13 +35,20 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
   skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
   (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
   trend aggregates (`monthly_skill_frequency` / `monthly_salary`).
-- **PLAN step 5 done:** two-stage agent — stage 1 tool-calling → language-neutral `Payload`
-  (`TableSpec` + `Quote` + `Fact`), stage 2 per-locale prose (`Prose`, numbers only as
-  `{placeholders}`, code fills locale-formatted); code-owned table labels (`agent/locale.py`);
-  `/ask` carries `lang`; RU eval set (`r1`…`ri1`) + cross-language grader (`x2`, same sources +
-  top-1). **A/B done:** Kimi won the RU set (30/30 vs DeepSeek 27/30) and is now the RU prose
-  model; stage 1 moved flash → `deepseek-v4-pro` (flash drifted on the table contract); prose
-  prompt tightened (one-sentence headline, similarity never a fact).
+- **PLAN steps 1–5 done:** structured answer contract; retention keep-everything + 90-day window
+  (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
+  skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
+  (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
+  trend aggregates (`monthly_skill_frequency` / `monthly_salary`); two-stage agent
+  (stage 1 tool-calling → language-neutral `Payload`, stage 2 per-locale prose with Kimi RU);
+  RU eval set + cross-language grader + refusal probes.
+- **2026-10-27 dashboard + naming (done):** PLAN step 6 (monthly report) cut — a stored
+  pre-generated report duplicates the four canned queries the agent already answers on demand, and
+  the trend half needs ≥6 months of history not yet available. Replaced by a live `/dashboard`
+  endpoint (`GET /dashboard?lang=en|ru`) that runs analytics functions directly (no LLM, no
+  storage) and a Dashboard tab in the frontend rendering summary cards + table panels. The old
+  MonthlyReport tab is deleted. Naming pass done: package `techanizer`, MCP server name,
+  Habr user-agent, README stale text; DB identifiers preserved.
 
 ## Phase 1 — Ingestion
 
@@ -81,7 +88,7 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [x] CI — ruff + mypy + pytest over pgvector + curated fixture (`export_ci_fixture.py`)
 - [x] MCP server — `jobmarket_agent/mcp/server.py` (FastMCP 1.29), 3 tools, direct DB
 - [x] Frontend — Techanizer UI (React + Vite + Tailwind v4, Figma design merged): query box,
-      Analysis/Monthly tabs, RU/EN chrome, dark/light; renders structured tool output +
+      Analysis/Dashboard tabs, RU/EN chrome, dark/light; renders structured tool output +
       highlighted prose; hand-written SSE client; served from FastAPI `StaticFiles` mounted only
       when `dist/` exists (CI has no build)
 - [x] Rate limit + spend cap + max-turns on the agent loop (before public, non-negotiable)
@@ -97,13 +104,14 @@ Decisions go in DECISIONS.md. Nothing here restates what the code says.
 - [ ] README with architecture diagram, eval-results table, Known limitations, demo GIF
 - [ ] Cross-source dedup (fuzzy company+title) + trend charts
 - [ ] Hand-roll the validate-and-retry loop to see what `pydantic-ai` hides (see DECISIONS)
-- [ ] **Refactor product naming:** rename the remaining `remote-job-search` / job-search
-      terminology in package metadata, CLI help, module comments, and documentation to
-      Techanizer and tech job-market analysis; preserve database/table identifiers where a
-      migration would add risk.
+- [x] **Refactor product naming:** package `techanizer`, MCP server name, Habr user-agent,
+      README stale text. DB identifiers preserved.
 
 ## Next
 
-1. **PLAN step 6** — monthly market analysis job (numeric payload → prose, both locales, stored in
-   a `reports` table).
-2. **Deploy** (Phase 5) + **README** + finish the **naming pass** (Phase 6).
+1. **SiliconFlow embedding migration** — swap ollama `/api/embed` → SiliconFlow
+   `POST /v1/embeddings` (model `BAAI/bge-m3`). Drops the GPU/ollama requirement from the VPS;
+   already have the SiliconFlow key.
+2. **Deploy** (Phase 5) — `docker-compose.yml` `web` service, Alibaba Cloud ECS,
+   TLS reverse proxy, eval before/after, weekly cron line.
+3. **README** (Phase 6) — architecture diagram, eval-results table, Known limitations, demo GIF.

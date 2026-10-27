@@ -9,7 +9,7 @@ export type Lang = 'en' | 'ru'
 type Messages = {
   intelligence: string
   analysis: string
-  monthly: string
+  dashboard: string
   ask: string
   defaultQuery: string
   run: string
@@ -21,9 +21,10 @@ type Messages = {
   suggestions: string
   errorTitle: string
   errorHint: string
-  reportTitle: string
-  generatedMonthly: string
-  emptyText: string
+  dashboardTitle: string
+  totalRoles: string
+  totalPostings: string
+  windowDays: string
   // Contract render chrome.
   keyFinding: string
   evidence: string
@@ -35,7 +36,7 @@ type Messages = {
 const en: Messages = {
   intelligence: 'TECH MARKET INTELLIGENCE',
   analysis: 'Analysis',
-  monthly: 'Monthly report',
+  dashboard: 'Dashboard',
   ask: 'Ask the corpus…',
   defaultQuery: 'Which skills appear in the most roles?',
   run: 'Run query',
@@ -48,10 +49,10 @@ const en: Messages = {
   suggestions: 'SUGGESTED',
   errorTitle: 'Something went wrong',
   errorHint: 'The query could not be completed. Try again.',
-  reportTitle: 'Monthly Report',
-  generatedMonthly: 'Reports are generated monthly',
-  emptyText:
-    'The first report will appear here when a complete month of market data is available.',
+  dashboardTitle: 'Market at a glance',
+  totalRoles: 'Roles',
+  totalPostings: 'Postings',
+  windowDays: 'Day window',
   keyFinding: 'KEY FINDING',
   evidence: 'Evidence',
   salaryNotStated: 'Salary not stated',
@@ -62,7 +63,7 @@ const en: Messages = {
 const ru: Messages = {
   intelligence: 'АНАЛИТИКА ТЕХ-РЫНКА',
   analysis: 'Аналитика',
-  monthly: 'Ежемесячный отчёт',
+  dashboard: 'Дашборд',
   ask: 'Задать вопрос по базе…',
   defaultQuery: 'Какие навыки упоминаются в наибольшем числе ролей?',
   run: 'Запустить',
@@ -75,10 +76,10 @@ const ru: Messages = {
   suggestions: 'ПРЕДЛОЖЕННЫЕ',
   errorTitle: 'Что-то пошло не так',
   errorHint: 'Не удалось выполнить запрос. Попробуйте ещё раз.',
-  reportTitle: 'Ежемесячный отчёт',
-  generatedMonthly: 'Отчёты формируются раз в месяц',
-  emptyText:
-    'Первый отчёт появится здесь, когда будет доступен полный месяц рыночных данных.',
+  dashboardTitle: 'Обзор рынка',
+  totalRoles: 'Ролей',
+  totalPostings: 'Вакансий',
+  windowDays: 'Дневное окно',
   keyFinding: 'КЛЮЧЕВОЙ ВЫВОД',
   evidence: 'Подтверждения',
   salaryNotStated: 'Зарплата не указана',

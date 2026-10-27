@@ -12,7 +12,7 @@ HABR_PER_PAGE = 50
 
 # Undocumented frontend API: identify the client and space the calls out. A full
 # run is ~10 list calls plus one detail fetch per new posting.
-HABR_USER_AGENT = "job-market-agent/0.1 (portfolio project)"
+HABR_USER_AGENT = "techanizer/0.1 (portfolio project)"
 HABR_DELAY_S = 0.5
 
 DESCRIPTION_SELECTOR = "div.vacancy-description__text"

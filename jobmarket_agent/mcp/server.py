@@ -12,7 +12,7 @@ from jobmarket_agent.agent.tools import (
     make_vector_search,
 )
 
-mcp = FastMCP("job-market")
+mcp = FastMCP("techanizer")
 
 
 def _connect() -> psycopg.Connection:
