@@ -58,6 +58,27 @@ cannot support.
               └──────────────────────────────────────────────┘
 ```
 
+The end-to-end data flow, as a process:
+
+```mermaid
+flowchart LR
+    subgraph SRC["Sources"]
+        hn[HN] & rem[Remotive] & w3[Web3] & hab[Habr]
+    end
+    subgraph PIPE["Weekly pipeline"]
+        load[Load] --> ext[Extract] --> emb[Embed]
+    end
+    subgraph STORE["Storage"]
+        db[(Postgres + pgvector)]
+    end
+    subgraph APP["On-demand query"]
+        q([Question]) --> s1[Stage 1 · tools] --> s2[Stage 2 · prose] --> a([Answer]) --> ui[React UI]
+    end
+    hn & rem & w3 & hab --> load
+    emb --> db
+    db --> s1
+```
+
 ## What is implemented
 
 - Four ingestion adapters with idempotent upserts and source-specific parsing.
@@ -79,6 +100,14 @@ cannot support.
 - React UI with English/Russian output, light/dark themes, structured tables,
   evidence quotes, and explicit missing-data states.
 - Weekly `load → extract → embed` scheduler with per-source run logging.
+
+## Design principles
+
+- **Grounded, not generated** — every non-null field is a verbatim substring of the posting.
+- **Honest about gaps** — missing salary/seniority is reported, never imputed.
+- **Two-stage agent** — language-neutral payload → localized prose; identical tables EN/RU.
+- **Scoped tools** — `sql_query` is a named-query whitelist; no SQL crosses the model boundary.
+- **Guardrails** — rate limit, spend cap, tool-call cap, API key.
 
 ## Models
 
@@ -211,7 +240,7 @@ frontend/                     React/Vite/Tailwind UI
 db/schema/                    re-runnable database migrations
 tests/                        unit, contract, serving, and integration tests
 evals/                        frozen snapshots, gold data, and evaluations
-docs/                         roadmap, plan, and engineering decisions
+docs/                         roadmap and engineering decisions
 ```
 
 The installable package and its import name are both `techanizer`.

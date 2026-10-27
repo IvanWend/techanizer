@@ -1,124 +1,47 @@
 # Roadmap
 
-A **Techanizer tech job-market analysis agent over heterogeneous vacancy sources.**
-
-**Maintenance rule.** Current state is rewritten from scratch each session, not appended to.
-Decisions go in DECISIONS.md. Nothing here restates what the code says.
-
-## Current state (2026-10-27)
-
-- **Techanizer market analyzer** (free-text corpus queries + one-line run status + RU/EN).
-  Plan in `docs/PLAN.md`, decisions in `docs/DECISIONS.md` — this file is the done-checklist.
-- **Decision (2026-10-25): free-text `/ask` is the product; the query menu was reverted.** The
-  5-item menu was tested and cut — free-form querying is the point, and a fixed menu trades
-  capability for correctness. The wrong-answer bug it worked around is a *refusal* failure, so the
-  fix is unsupported-query refusal + tighter tools, not a menu (PLAN "Free-text agent", DECISIONS
-  "Agent"). Reverted in `ab7183e`, tree restored to `e86d1d9`.
-- **2026-10-26 triage (done):** small-n salary medians gated (`analytics.MIN_SAMPLE=30`, the
-  `unknown` seniority bucket withholds its median too — DECISIONS "Agent"); landing hero pills
-  replaced by a scope greeting; suggestion rail expanded to 3–4 ML-flavoured queries per section
-  (EN/RU, only queries the four canned shapes + `vector_search` can answer). Seniority `unknown`
-  (43%, HN 61%) left as-is on purpose — honest, not a bug.
-- **2026-10-26 tools optimization (done):** `tool_calls_limit` 15 → 6 (the prompt caps legit use
-  at 4 calls, so 15 only extended a runaway); flash-vs-pro stage-1 split confirmed settled
-  (pro holds the exact-cells contract, extraction stays flash); tool descriptions left as-is
-  (already tight) and tool-result payloads untrimmed — `description`/`employment_type` are kept
-  as grounding-grade data for a future "what does this role do" answer. No new scoped tool shapes
-  (domain/company/percentile splits stay deferred — DECISIONS "Still open").
-- **2026-10-26 refusal (done):** stage-1 `refused` flag on `Payload`/`Answer` + code-owned
-  localized message (`locale.REFUSAL`); `compose`/`stream_answer` skip stage-2 prose on refusal.
-  Eval adds refusal probes `o1`/`o2`/`o3` (EN) + `ro1` (RU) graded for `refused` AND no
-  tables/quotes — 12/12, in-scope subset held (no over-refusal).
-- Phases 1–4 done; Phase 5 mostly done (agent eval 59/60, guardrails, packaging, MCP, frontend).
-- **PLAN steps 1–4 done:** structured answer contract; retention keep-everything + 90-day window
-  (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
-  skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
-  (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
-  trend aggregates (`monthly_skill_frequency` / `monthly_salary`).
-- **PLAN steps 1–5 done:** structured answer contract; retention keep-everything + 90-day window
-  (purge no-op, rollups dropped, `last_seen_at`, HN all-threads, `db_meta.role='live'` gate);
-  skill alias v2 (version-strip + separator fold + typo map) + `/ask` API key; scheduler entrypoint
-  (`ops/scheduler.py`, `load → extract → embed`) + `ingestion_runs` run-log + full-history monthly
-  trend aggregates (`monthly_skill_frequency` / `monthly_salary`); two-stage agent
-  (stage 1 tool-calling → language-neutral `Payload`, stage 2 per-locale prose with Kimi RU);
-  RU eval set + cross-language grader + refusal probes.
-- **2026-10-27 dashboard + naming (done):** PLAN step 6 (monthly report) cut; naming pass done
-  (package `techanizer`, MCP server name, Habr user-agent, README stale text; DB identifiers
-  preserved). The replacement live dashboard was cut the same day — see next line.
-- **2026-10-27 dashboard removed + streaming UX (done):** the dashboard duplicated the four
-  canned queries the agent answers on demand, and its two honesty-rule rows (NULL-currency
-  bucket, `MIN_SAMPLE`-gated medians) rendered as dash-rows that read as bugs. Removed:
-  `GET /dashboard`, `analytics.corpus_stats`, the Dashboard tab + i18n keys; the UI is the
-  single Analysis screen again. `/ask` gained a `status` frame (phase=prose, before the
-  stage-2 call); the UI keeps one replacing status line ("Thinking…" → tool phrase →
-  "Writing the answer…"). A per-call args summary + step checklist were tried and cut the
-  same day — they added noise without insight.
-- **2026-10-27 live deploy cut:** a public demo means a browser-visible `ASK_API_KEY` +
-  paid model keys behind a rate limit — not worth a monthly VPS bill for a portfolio.
-  Ship a README deploy runbook + demo GIF instead (Phase 6); a live link, if ever wanted,
-  goes on Oracle Cloud Always Free after the SiliconFlow embedding migration drops ollama.
+**Techanizer** — tech job-market analysis agent over heterogeneous vacancy sources (HN,
+Remotive, Web3.career, Habr). Done-checklist; reasoning lives in `DECISIONS.md`, overview + next
+step in `PROMPT.md`.
 
 ## Phase 1 — Ingestion
-
-- [x] Four board clients: HN (Algolia), Remotive, Web3.career, Habr Career
-- [x] 90-day rolling window filter + idempotent upsert on `(source, external_id)` — `load.py`
-- [x] `retention.py` + `purge.py`, guarded by `db_meta.role='live'` (see GOTCHAS: psycopg / Docker)
-- [x] Frozen eval baseline: `evals/snapshots/2026-10-27_raw.dump` → `techanizer_eval`, `techanizer_ro`
-- [x] `evals/generate_gold_dataset.py` → `gold_40_candidates.json`, seeded, reruns byte-identical
+- [x] Four board clients — HN (Algolia), Remotive, Web3.career, Habr Career
+- [x] 90-day rolling window + idempotent upsert on `(source, external_id)`
+- [x] Keep-everything retention; `purge.py` no-op, guarded by `db_meta.role='live'`
+- [x] Frozen eval baseline — `evals/snapshots/2026-10-27_raw.dump`
+- [x] `generate_gold_dataset.py` → `gold_40_candidates.json` (byte-identical reruns)
 
 ## Phase 2 — Extraction + evals
-
-- [x] Extraction modules — `normalize`, `source_adapters`, `schema`, `transform`, `prompt`, DDL 005–007
-- [x] Pipeline — `pending`/`build_agent`/`extract`/`persist`, chunked `run`, Langfuse tracing
-- [x] Corpus pass + repairs — pilot, then all 1,098 rows → 1,663 roles; `apply_ground_truth`, `backfill.py`
-- [x] Tests — `test_normalize` / `test_transform` / `test_source_adapters` / `test_schema` + fixtures
-- [x] Eval + freeze — `gold_labeled.json`, `eval_extraction.py` (prompt 2×, seniority 68→93%), re-snapshot → `techanizer_eval`
+- [x] Modules — `normalize`, `schema`, `source_adapters`, `transform`, `prompt` + DDL 005–007
+- [x] Pipeline — `pending`/`build_agent`/`extract`/`persist`, chunked run, Langfuse tracing
+- [x] Corpus pass — 1,098 postings → 1,973 roles; `apply_ground_truth`, `backfill.py`
+- [x] Skill alias v2 — version-strip, separator fold, typo map
+- [x] Eval + freeze — `eval_extraction.py` (seniority 68→94%), re-snapshot
 
 ## Phase 3 — Storage + retrieval
-
-- [x] Model — bge-m3 at 1024-dim (verified live)
-- [x] Embedding pipeline — `embed.py`: `title + seniority + stack + description`, `text::vector` cast (DECISIONS: storage)
-- [x] pgvector search + basic metadata filters (seniority, remote) — `vector_search.py`, HNSW index (009)
-- [x] SQL analytics queries (skill frequency, salary distributions) — hand-written — `analytics.py`
-- [x] Monthly rollups so trends survive the purge (see DECISIONS: storage) — `rollups.py` + DDL 010
-      (dropped in step 2: keep-everything makes them redundant)
+- [x] bge-m3 embeddings at 1024-dim
+- [x] `embed.py` — `title + seniority + stack + description`, `text::vector` cast
+- [x] pgvector search + HNSW index (009) + seniority/remote filters
+- [x] SQL analytics — `analytics.py` (skill frequency, salary distributions)
+- [x] Trend aggregates — `monthly_skill_frequency` / `monthly_salary`
 
 ## Phase 4 — Agent
-
-- [x] Tools: `sql_query`, `vector_search`, `role_detail` (`resume_match` → `role_detail`)
-- [x] Agent loop with DeepSeek tool-calling (`output_type=Answer`, sequential tool execution)
-- [x] Agent eval suite — `evals/eval_agent.py`: 18 questions + scorer, 3× runs; baseline 45/45 on
-      the original 15 (before the provider/model swap), then +d9/x2/x3 for the salary-ranking fix
-- [x] FastAPI endpoint with SSE streaming
+- [x] Tools — `sql_query` (named-query whitelist), `vector_search`, `role_detail`
+- [x] Loop — DeepSeek tool-calling, `output_type=Answer`, sequential execution
+- [x] Two-stage — stage 1 tool-calling → `Payload`, stage 2 prose (DeepSeek EN / Kimi RU)
+- [x] Refusal — `refused` flag + localized message; out-of-scope probes
+- [x] Eval — `eval_agent.py` (59/60) + FastAPI SSE streaming
 
 ## Phase 5 — Distribution & ops
-
-- [x] CI — ruff + mypy + pytest over pgvector + curated fixture (`export_ci_fixture.py`)
-- [x] MCP server — `techanizer/mcp/server.py` (FastMCP 1.29), 3 tools, direct DB
-- [x] Frontend — Techanizer UI (React + Vite + Tailwind v4, Figma design merged): query box,
-      single Analysis screen, RU/EN chrome, dark/light; renders structured tool output +
-      highlighted prose; hand-written SSE client; served from FastAPI `StaticFiles` mounted only
-      when `dist/` exists (CI has no build)
-- [x] Rate limit + spend cap + max-turns on the agent loop (before public, non-negotiable)
-- [x] Packaging — installable (hatchling + `techanizer` flat layout); see DECISIONS: Packaging
-- [x] Fresh ingest + extract right before deploy (demo freshness)
-- [x] **Deployment cut (2026-10-27):** no live VPS — README deploy runbook + demo GIF instead
-      (Phase 6 README task); compose + scheduler stay deploy-ready
-- [x] Scheduled re-ingestion entrypoint — `ops/scheduler.py` (`load → extract → embed`) +
-      `ingestion_runs` run-log (PLAN step 4); the cron/timer line is a step-7 deploy concern
+- [x] CI — ruff + mypy + pytest over pgvector + curated fixture
+- [x] MCP server — `techanizer/mcp/server.py`, 3 tools, direct DB
+- [x] Frontend — React + Vite + Tailwind, RU/EN, SSE, structured render
+- [x] Guardrails — rate limit + spend cap + max-turns; `/ask` API key; packaging
+- [x] Scheduler — `ops/scheduler.py` (`load → extract → embed`) + run-log; deploy cut (runbook)
 
 ## Phase 6 — Polish
-
-- [ ] README with architecture diagram, eval-results table, Known limitations, demo GIF
-- [ ] Cross-source dedup (fuzzy company+title) + trend charts
-- [ ] Hand-roll the validate-and-retry loop to see what `pydantic-ai` hides (see DECISIONS)
-- [x] **Refactor product naming:** package `techanizer`, MCP server name, Habr user-agent,
-      README stale text. DB identifiers preserved.
-
-## Next
-
-1. **SiliconFlow embedding migration** — swap ollama `/api/embed` → SiliconFlow
-   `POST /v1/embeddings` (model `BAAI/bge-m3`). Drops the GPU/ollama requirement from any
-   future deploy; already have the SiliconFlow key.
-2. **README** (Phase 6) — architecture diagram, eval-results table, Known limitations, demo
-   GIF + deploy runbook (compose, Caddy TLS, cron line for `ops/scheduler.py`).
+- [x] Naming — package `techanizer`, DB identity, MCP server, Habr user-agent
+- [x] README — architecture diagram, data-coverage + eval tables, limitations, RU version
+- [x] Dashboard cut — `/dashboard` removed; `/ask` is the single product surface
+- [x] Presentation — BPMN data-flow diagram in README (EN/RU)
+- [x] Fresh ingest + extract before any demo
