@@ -17,6 +17,7 @@ from techanizer.storage.analytics import (
     rank_top_salaries,
 )
 from techanizer.storage.embed import to_vector_text
+from techanizer.storage.vector_search import expand_query
 
 
 # Serializer output format only — the psycopg round-trip is already proven by
@@ -32,6 +33,24 @@ from techanizer.storage.embed import to_vector_text
 )
 def test_to_vector_text(vec: list[float], expected: str) -> None:
     assert to_vector_text(vec) == expected
+
+
+# Suffixes are data-driven from eval_retrieval: the ambiguous tokens that
+# bge-m3 mis-encodes when bare, and the suffix that anchors them back.
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("kafka event streaming", "kafka event streaming stream processing"),
+        ("Kafka Event Streaming", "Kafka Event Streaming stream processing"),
+        ("postgresql database engineer", "postgresql database engineer relational database"),
+        ("postgres database", "postgres database relational database"),
+        ("solidity smart contract", "solidity smart contract ethereum blockchain"),
+        ("rust systems programmer", "rust systems programmer"),
+        ("apache kafka stream processing", "apache kafka stream processing"),
+    ],
+)
+def test_expand_query(query: str, expected: str) -> None:
+    assert expand_query(query) == expected
 
 
 def _top(raw_posting_id: int, salary_min: int | None, salary_max: int | None) -> TopSalary:

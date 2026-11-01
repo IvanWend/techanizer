@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 from collections.abc import Sequence
 from typing import NamedTuple
 
@@ -42,6 +43,25 @@ WINDOW_SQL = (
     "((SELECT role FROM db_meta) <> 'live' "
     "OR r.posted_at >= now() - make_interval(days => %(days)s))"
 )
+
+# Bare tech tokens with strong non-technical senses (kafka, solidity) embed
+# toward the wrong meaning, and "postgres" ranks weakly on its own. Appending a
+# disambiguating suffix anchors the query to the intended sense.
+QUERY_EXPANSION = {
+    "kafka": "stream processing",
+    "postgres": "relational database",
+    "postgresql": "relational database",
+    "solidity": "ethereum blockchain",
+}
+
+
+def expand_query(query: str) -> str:
+    out = query
+    for token, suffix in QUERY_EXPANSION.items():
+        if re.search(rf"\b{re.escape(token)}\b", out, re.IGNORECASE) and suffix not in out:
+            out = f"{out} {suffix}"
+    return out
+
 
 # Named params, not positional: the query vector appears twice (projection and
 # ORDER BY) and %(qvec)s binds it once. <=> carries the lowest operator
@@ -99,7 +119,7 @@ def run(
     seniority: Sequence[str] | None = None,
     remote: Sequence[str] | None = None,
 ) -> list[SearchHit]:
-    vec = embed([QUERY_INSTRUCTION + query])[0]
+    vec = embed([QUERY_INSTRUCTION + expand_query(query)])[0]
     return search(conn, to_vector_text(vec), limit=limit, seniority=seniority, remote=remote)
 
 
