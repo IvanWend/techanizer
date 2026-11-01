@@ -119,9 +119,6 @@ flowchart LR
 | Embeddings | `bge-m3` (1024-dim), local via Ollama |
 | Eval judge | Kimi K3 |
 
-All models are Chinese open-weight; the extraction batch uses the flash tier for
-cost, while the agent's stage 1 runs on pro to hold the exact-cells contract.
-
 ## Data coverage
 
 The corpus holds **1,973 roles / 1,390 postings** (Jul 14 – Oct 12 2026). Fields
@@ -153,7 +150,9 @@ live board.
   stitched bullet fragments, not fabrications.
 - **Agent eval** (deterministic, semantic, refusal, injection, and cross-language
   probes, 3 runs each): 59/60 on the frozen snapshot.
-- **Tests:** 233 unit/contract/serving/integration tests, plus the above LLM
+- **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 0.66,
+  precision@10 0.48.
+- **Tests:** 242 unit/contract/serving/integration tests, plus the above LLM
   evals.
 
 ## Try it locally

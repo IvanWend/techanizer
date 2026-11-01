@@ -24,6 +24,7 @@ step in `PROMPT.md`.
 - [x] pgvector search + HNSW index (009) + seniority/remote filters
 - [x] SQL analytics — `analytics.py` (skill frequency, salary distributions)
 - [x] Trend aggregates — `monthly_skill_frequency` / `monthly_salary`
+- [x] Retrieval eval — `eval_retrieval.py` (lexical MRR) + `QUERY_EXPANSION` for ambiguous tokens
 
 ## Phase 4 — Agent
 - [x] Tools — `sql_query` (named-query whitelist), `vector_search`, `role_detail`
