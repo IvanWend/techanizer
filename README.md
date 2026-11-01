@@ -22,61 +22,40 @@ cannot support.
 
 ## Architecture
 
-```text
-            Hacker News   Remotive   Web3.career   Habr Career
-            (Algolia)      (API)       (API)          (API)
-                    │          │           │              │
-                    ▼          ▼           ▼              ▼
-              ┌──────────────────────────────────────────────┐
-              │   Postgres raw postings (idempotent upsert)  │
-              └──────────────────────┬───────────────────────┘
-                                     ▼
-              ┌──────────────────────────────────────────────┐
-              │  LLM extraction + Pydantic validation        │
-              │  (DeepSeek V4 Flash)                         │
-              │  → structured roles + verbatim source quotes │
-              └──────────────────────┬───────────────────────┘
-                                     ▼
-              ┌──────────────────────────────────────────────┐
-              │  Postgres + pgvector  ·  bge-m3 (1024-dim)   │
-              └───────────────┬──────────────────┬───────────┘
-                              ▼                  ▼
-              ┌──────────────────────┐   ┌──────────────────────┐
-              │  SQL analytics       │   │  HNSW vector search  │
-              │  (skill freq, salary)│   │  (semantic match)    │
-              └──────────┬───────────┘   └──────────┬───────────┘
-                         └────────────┬─────────────┘
-                                      ▼
-              ┌──────────────────────────────────────────────┐
-              │  Two-stage agent (DeepSeek V4 Pro → Kimi/DS)  │
-              │  tool-calling → language-neutral payload      │
-              │  → localized prose                            │
-              └──────────────────────┬───────────────────────┘
-                                     ▼
-              ┌──────────────────────────────────────────────┐
-              │  FastAPI + SSE  ·  MCP server  ·  React UI    │
-              └──────────────────────────────────────────────┘
-```
-
-The end-to-end data flow, as a process:
-
 ```mermaid
 flowchart LR
     subgraph SRC["Sources"]
-        hn[HN] & rem[Remotive] & w3[Web3] & hab[Habr]
+        hn["Hacker News (Algolia)"]
+        rem["Remotive (API)"]
+        w3["Web3.career (API)"]
+        hab["Habr Career (API)"]
     end
-    subgraph PIPE["Weekly pipeline"]
-        load[Load] --> ext[Extract] --> emb[Embed]
+    subgraph INGEST["Ingestion"]
+        raw[("Postgres raw postings<br/>idempotent upsert")]
+    end
+    subgraph EXTRACT["Extraction"]
+        ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4 Flash)<br/>→ structured roles + verbatim quotes"]
     end
     subgraph STORE["Storage"]
-        db[(Postgres + pgvector)]
+        db[("Postgres + pgvector<br/>bge-m3 (1024-dim)")]
     end
-    subgraph APP["On-demand query"]
-        q([Question]) --> s1[Stage 1 · tools] --> s2[Stage 2 · prose] --> a([Answer]) --> ui[React UI]
+    subgraph QUERY["Query"]
+        sql["SQL analytics<br/>(skill freq, salary)"]
+        vec["HNSW vector search<br/>(semantic match)"]
     end
-    hn & rem & w3 & hab --> load
-    emb --> db
-    db --> s1
+    subgraph AGENT["Agent"]
+        agent["Two-stage agent<br/>(DeepSeek V4 Pro → Kimi/DS)<br/>tool-calling → payload → prose"]
+    end
+    subgraph SERVE["Serving"]
+        ui["FastAPI + SSE · MCP server · React UI"]
+    end
+
+    hn & rem & w3 & hab --> raw
+    raw --> ext
+    ext --> db
+    db --> sql & vec
+    sql & vec --> agent
+    agent --> ui
 ```
 
 ## What is implemented
@@ -101,13 +80,6 @@ flowchart LR
   evidence quotes, and explicit missing-data states.
 - Weekly `load → extract → embed` scheduler with per-source run logging.
 
-## Design principles
-
-- **Grounded, not generated** — every non-null field is a verbatim substring of the posting.
-- **Honest about gaps** — missing salary/seniority is reported, never imputed.
-- **Two-stage agent** — language-neutral payload → localized prose; identical tables EN/RU.
-- **Scoped tools** — `sql_query` is a named-query whitelist; no SQL crosses the model boundary.
-- **Guardrails** — rate limit, spend cap, tool-call cap, API key.
 
 ## Models
 
@@ -248,13 +220,8 @@ The installable package and its import name are both `techanizer`.
 
 - The corpus focuses on remote technology jobs and is biased toward startup,
   Web3, Hacker News, Remotive, and Habr communities.
-- Three sources are primarily English and one is Russian; this reflects legal
-  source availability and provides a multilingual use case, not national
-  language proportions.
 - **Salary coverage is low (32%).** Most postings simply do not state pay; the
-  agent reports this rather than estimating. Salary medians are withheld when a
-  bucket has fewer than 30 roles, and roles whose currency was never stated are
-  excluded from currency-filtered splits (never imputed).
+  agent reports this rather than estimating.
 - **Seniority is unknown for 43% of roles** (HN 61%): the extractor reads stated
   levels only and refuses to guess.
 - Currencies are kept in their stated currency and never converted.
