@@ -51,28 +51,6 @@ flowchart LR
     agent --> ui
 ```
 
-## What is implemented
-
-- Four ingestion adapters with idempotent upserts and source-specific parsing.
-- Rolling 90-day live search window over a keep-everything corpus (history
-  retained for trend analysis).
-- Structured extraction of company, title, skills, seniority, remote policy,
-  employment type, salary, and source quotes — every non-null field grounded by
-  a verbatim substring of the posting.
-- Skill normalization and aliasing across inconsistent source vocabulary.
-- PostgreSQL + pgvector + HNSW vector search with local `bge-m3` embeddings.
-- A typed two-stage agent: tool-calling produces a language-neutral payload; a
-  second model writes English or Russian prose. Unsupported questions are
-  refused rather than answered confidently wrong.
-- Three scoped tools — `sql_query` (a named-query whitelist, no SQL crosses the
-  model boundary), `vector_search`, `role_detail` — run sequentially under
-  request/tool/token usage limits.
-- SQL analytics, semantic search, SSE streaming, API-key gating, rate limiting,
-  and MCP access.
-- React UI with English/Russian output, light/dark themes, structured tables,
-  evidence quotes, and explicit missing-data states.
-- Weekly `load → extract → embed` scheduler with per-source run logging.
-
 
 ## Models
 
