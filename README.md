@@ -6,13 +6,6 @@ Web3.career, and Habr Career — extracts them into structured, searchable recor
 with verbatim grounding quotes, and answers free-text questions about the corpus
 through a tool-calling agent.
 
-It turns inconsistent English and Russian postings into a queryable market
-picture:
-
-- Which skills are most common among backend roles?
-- What are the median salaries by currency or seniority?
-- Which vacancies are semantically closest to a role description?
-
 This is a production-oriented demonstration of integrating an LLM into a real
 data pipeline: ingestion → structured extraction → vector storage → a typed,
 tool-calling agent → a localized UI. The source mix is intentionally
@@ -91,24 +84,6 @@ flowchart LR
 | Embeddings | `bge-m3` (1024-dim), local via Ollama |
 | Eval judge | Kimi K3 |
 
-## Data coverage
-
-The corpus holds **1,973 roles / 1,390 postings** (Jul 14 – Oct 12 2026). Fields
-are extracted only when the posting actually states them — the pipeline never
-imputes a missing value, so coverage varies by source:
-
-| Source | Roles | Salary stated | Seniority stated | Stack |
-|---|---:|---:|---:|---:|
-| Hacker News | 1,031 | 32% | 39% | 45% |
-| Habr Career | 763 | 34% | 83% | 90% |
-| Web3.career | 149 | 21% | 48% | 90% |
-| Remotive | 30 | 40% | 57% | 100% |
-| **Total** | **1,973** | **32%** | **57%** | **67%** |
-
-HN *Who Is Hiring* is free-text and often lists a bare "we're hiring" with no
-salary, level, or stack — which is why its coverage is low. This sparsity is a
-property of the sources, not the pipeline: the agent reports coverage honestly
-and withholds small-sample medians rather than inventing figures.
 
 ## Evaluation
 
