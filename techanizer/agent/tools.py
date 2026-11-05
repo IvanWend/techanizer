@@ -64,11 +64,13 @@ def make_vector_search(conn) -> Callable[..., list[dict[str, Any]]]:
         seniority: list[Literal["intern", "junior", "mid", "senior", "staff+"]] | None = None,
         remote: list[Literal["remote", "hybrid", "onsite"]] | None = None,
     ) -> list[dict[str, Any]]:
-        """Search roles by semantic similarity to a query.
+        """Search roles by semantic and exact-keyword match to a query.
 
-        Hits are ranked by cosine similarity, higher = closer (max 1.0). Salary
-        figures are monthly in their source currency, never converted. `stack`
-        is a list of skills. Report similarity when asked which jobs are closest.
+        Hits are ranked by a hybrid of semantic similarity and exact-token
+        match; `similarity` is the dense cosine score (higher = closer, max
+        1.0). Salary figures are monthly in their source currency, never
+        converted. `stack` is a list of skills. Report similarity when asked
+        which jobs are closest.
 
         Args:
             query: Free-text query, embedded and matched against role text.

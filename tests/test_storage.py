@@ -17,7 +17,13 @@ from techanizer.storage.analytics import (
     rank_top_salaries,
 )
 from techanizer.storage.embed import to_vector_text
-from techanizer.storage.vector_search import expand_query
+from techanizer.storage.vector_search import (
+    SearchHit,
+    expand_query,
+    lexical_terms,
+    lexical_tsquery,
+    reciprocal_rank_fusion,
+)
 
 
 # Serializer output format only — the psycopg round-trip is already proven by
@@ -51,6 +57,92 @@ def test_to_vector_text(vec: list[float], expected: str) -> None:
 )
 def test_expand_query(query: str, expected: str) -> None:
     assert expand_query(query) == expected
+
+
+# OR, not AND: a role whose stack has only "kafka" must still match the query
+# "kafka event streaming". Terms mirror the 'simple' parser's split (non-word
+# chars), lowercased, so the exact-token leg needs any one of them.
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("kafka event streaming", "kafka | event | streaming"),
+        ("Kafka Event Streaming", "kafka | event | streaming"),
+        ("postgresql database engineer", "postgresql | database | engineer"),
+        ("golang backend engineer", "golang | backend | engineer"),
+        ("data engineer", "data | engineer"),
+        ("c++ / rust", "c | rust"),
+    ],
+)
+def test_lexical_tsquery(query: str, expected: str) -> None:
+    assert lexical_tsquery(query) == expected
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("Kafka Event Streaming", ["kafka", "event", "streaming"]),
+        ("c++ / rust", ["c", "rust"]),
+        ("  ", []),
+    ],
+)
+def test_lexical_terms(query: str, expected: list[str]) -> None:
+    assert lexical_terms(query) == expected
+
+
+def _hit(raw_posting_id: int, similarity: float = 1.0) -> SearchHit:
+    return SearchHit(
+        raw_posting_id,
+        0,
+        None,
+        None,
+        None,
+        "unknown",
+        "unknown",
+        "unknown",
+        [],
+        None,
+        None,
+        None,
+        None,
+        "hn",
+        "",
+        similarity,
+    )
+
+
+# RRF (k=60) is the fusion contract: a doc present in both legs accumulates
+# 1/(k+rank) per leg, so an exact-token match sitting low in the dense list
+# still outranks a semantically-close doc the lexical leg never matched.
+def test_reciprocal_rank_fusion_ordering() -> None:
+    dense = [_hit(1), _hit(2)]
+    lexical = [_hit(2), _hit(3)]
+    fused = reciprocal_rank_fusion(dense, lexical, limit=10)
+    assert [h.raw_posting_id for h in fused] == [2, 1, 3]
+
+
+def test_reciprocal_rank_fusion_rescues_exact_match() -> None:
+    # kafka-shaped: the dense rank-1 doc is wrong, the exact match sits at dense
+    # rank 2 but lex rank 1; fusion must surface the exact match first.
+    dense = [_hit(10), _hit(20)]
+    lexical = [_hit(20)]
+    fused = reciprocal_rank_fusion(dense, lexical, limit=10)
+    assert fused[0].raw_posting_id == 20
+
+
+def test_reciprocal_rank_fusion_limit() -> None:
+    dense = [_hit(i) for i in range(10)]
+    fused = reciprocal_rank_fusion(dense, [], limit=3)
+    assert [h.raw_posting_id for h in fused] == [0, 1, 2]
+
+
+def test_reciprocal_rank_fusion_keeps_dense_similarity() -> None:
+    # A key in both legs keeps the dense leg's hit (and its similarity), so the
+    # reported number stays the cosine score, not a fused value.
+    dense = [_hit(1, similarity=0.9), _hit(2, similarity=0.7)]
+    lexical = [_hit(2, similarity=0.1)]
+    fused = reciprocal_rank_fusion(dense, lexical, limit=10)
+    by_key = {h.raw_posting_id: h.similarity for h in fused}
+    assert by_key[2] == 0.7
 
 
 def _top(raw_posting_id: int, salary_min: int | None, salary_max: int | None) -> TopSalary:

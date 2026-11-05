@@ -172,9 +172,8 @@ def test_vector_search_shape(eval_conn, monkeypatch) -> None:
     assert 0 < len(rows) <= 5
     for r in rows:
         assert set(r) == _SEARCH_HIT_KEYS
-    # SEARCH_SQL orders by cosine distance ascending, so similarity is
-    # non-increasing across the result.
-    assert all(rows[i]["similarity"] >= rows[i + 1]["similarity"] for i in range(len(rows) - 1))
+    # Ranking is now fused (dense + lexical), so similarity is not monotonic;
+    # only shape and filters are asserted here.
 
 
 def test_vector_search_seniority_filter(eval_conn, monkeypatch) -> None:
