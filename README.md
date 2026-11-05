@@ -34,7 +34,7 @@ flowchart LR
     end
     subgraph QUERY["Query"]
         sql["SQL analytics<br/>(skill freq, salary)"]
-        vec["HNSW vector search<br/>(semantic match)"]
+        vec["Hybrid search<br/>(pgvector + tsvector, RRF)"]
     end
     subgraph AGENT["Agent"]
         agent["Two-stage agent<br/>(DeepSeek V4 Pro → Kimi/DS)<br/>tool-calling → payload → prose"]
@@ -75,9 +75,9 @@ live board.
   stitched bullet fragments, not fabrications.
 - **Agent eval** (deterministic, semantic, refusal, injection, and cross-language
   probes, 3 runs each): 59/60 on the frozen snapshot.
-- **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 0.66,
-  precision@10 0.48.
-- **Tests:** 242 unit/contract/serving/integration tests, plus the above LLM
+- **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 0.96,
+  precision@10 0.73. Hybrid dense + lexical (tsvector) legs fused by reciprocal rank.
+- **Tests:** 253 unit/contract/serving/integration tests, plus the above LLM
   evals.
 
 ## Try it locally
@@ -155,7 +155,7 @@ DeepSeek key because the host supplies the model.
 ```text
 techanizer/ingestion/    board clients and loading
 techanizer/extraction/   schemas, prompts, normalization, pipeline
-techanizer/storage/      SQL analytics, embeddings, vector search
+techanizer/storage/      SQL analytics, embeddings, hybrid search
 techanizer/agent/        tools, schemas, localization, model loop
 techanizer/serving/      FastAPI and SSE streaming
 techanizer/mcp/          FastMCP server

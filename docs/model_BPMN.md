@@ -21,7 +21,7 @@ flowchart LR
     end
     subgraph QUERY["Query"]
         sql["SQL analytics<br/>(skill freq, salary)"]
-        vec["HNSW vector search<br/>(semantic match)"]
+        vec["Hybrid search<br/>(pgvector + tsvector, RRF)"]
     end
     subgraph AGENT["Agent"]
         agent["Two-stage agent<br/>(DeepSeek V4 Pro → Kimi/DS)<br/>tool-calling → payload → prose"]
