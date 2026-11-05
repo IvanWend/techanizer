@@ -10,7 +10,6 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-json
-        # tsconfig files are JSONC — comments are standard there.
         exclude: ^frontend/tsconfig.*\.json$
       - id: check-merge-conflict
       - id: check-case-conflict
