@@ -1,5 +1,5 @@
 -- 003_retention.sql
--- Groundwork for the rolling 90-day window (Phase 1b).
+-- Groundwork for the rolling 90-day window.
 --   1. db_meta: one row saying whether this database is the live rolling corpus
 --      or a restored eval snapshot. The purge asserts role = 'live' before it
 --      deletes anything, so pointing it at the frozen eval DB is a no-op error

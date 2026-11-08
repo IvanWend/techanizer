@@ -1,6 +1,5 @@
 -- 001_raw_postings.sql
--- Postings exactly as fetched, one row per (source, external_id). No parsing here:
--- this table is the replay buffer for extraction, so it must stay verbatim.
+-- Postings exactly as fetched, one row per (source, external_id).
 -- Re-runnable: applying twice is a no-op.
 
 BEGIN;
