@@ -23,6 +23,16 @@ QUOTE = {"salary": "$175,000 - $300,000"}
         ((25, 37500, "USD"), {"salary": "$300–450K base, 0.35–0.70%"}, (25000, 37500, "USD")),
         # Same misread with no quote to recover from: NULL beats 25 a month.
         ((25, 37500, "USD"), {}, (None, None, None)),
+        # habr 1000167993: the KPI bonus on top of the band — inverted fields
+        # are implausible, and the quote's single amount recovers 1200.
+        (
+            (1200, 300, "USD"),
+            {"salary": "Fixed compensation: $1200/month plus KPI $300"},
+            (1200, 1200, "USD"),
+        ),
+        # Inverted with no quote: NULL beats a rejected band; Habr's held-out
+        # ground truth (1200–1500) then fills the gap.
+        ((1200, 300, "USD"), {}, (None, None, None)),
     ],
 )
 def test_resolve_salary(

@@ -288,6 +288,11 @@ def salary_band_implausible(low: int | None, high: int | None) -> bool:
     stated = [v for v in (low, high) if v is not None]
     if not stated:
         return False
+    if low is not None and high is not None and low > high:
+        # Inverted is a misread, not a transposition to swap: "$1200/month
+        # plus KPI $300" lands as 1200/300 (habr 1000167993). The quote
+        # fallback decides what the posting actually said.
+        return True
     if min(stated) < SALARY_FLOOR_MONTHLY:
         return True
     return bool(low and high and high / low >= _SALARY_MAX_SPREAD)

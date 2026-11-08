@@ -6,7 +6,7 @@ import os
 import time
 from collections import Counter
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, Literal, NamedTuple
 
@@ -264,6 +264,24 @@ def persist(conn, raw_posting_id: int, outcome: Outcome) -> None:
         )
 
 
+def _persist_guarded(conn, raw_posting_id: int, outcome: Outcome) -> Outcome:
+    # persist(), with a DB rejection downgraded to an error row. The schema's
+    # CHECK constraints are the last line of defense against model output no
+    # upstream guard caught; one rejected row must not kill a full-corpus pass.
+    # persist's own transaction has already rolled back, so the failure is
+    # recorded here and the retry pass (DELETE ... WHERE status <> 'ok')
+    # re-queues it.
+    try:
+        persist(conn, raw_posting_id, outcome)
+        return outcome
+    except psycopg.Error as exc:
+        conn.rollback()
+        logger.error("Row %d persist failed: %s", raw_posting_id, str(exc)[:200])
+        rejected = replace(outcome, status="error", error=str(exc)[:500], roles=())
+        persist(conn, raw_posting_id, rejected)
+        return rejected
+
+
 async def run(
     conn,
     agent: Agent[None, PostingExtraction],
@@ -345,7 +363,7 @@ async def run(
                     outcome = outcomes[success_idx]
                     success_idx += 1
 
-                persist(conn, row.id, outcome)
+                outcome = _persist_guarded(conn, row.id, outcome)
 
                 if outcome.status == "ok":
                     ok_count += 1

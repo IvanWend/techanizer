@@ -338,6 +338,10 @@ def test_parse_salary_phrase_rejects(quote: str | None) -> None:
         (25, 37500, True),
         # "$157-181K" with both bounds stripped of their multiplier.
         (13, 15, True),
+        # habr 1000167993: "$1200/month plus KPI $300" — the KPI bonus read as
+        # the band ceiling. Nothing checked order before the DB constraint.
+        (1200, 300, True),
+        (300, 1200, False),
     ],
 )
 def test_salary_band_implausible(low: int | None, high: int | None, expected: bool) -> None:

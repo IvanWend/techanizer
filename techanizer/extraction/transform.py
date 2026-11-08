@@ -77,6 +77,14 @@ def _salary_from_quote(quotes: dict[str, str], currency: str | None) -> _Salary:
     parsed = parse_salary_phrase(quotes.get(SALARY_QUOTE_KEY), currency)
     if parsed is None:
         return None, None, None
+    if (
+        parsed.salary_min is not None
+        and parsed.salary_max is not None
+        and parsed.salary_min > parsed.salary_max
+    ):
+        # An inverted quote band is a misparse; NULL beats a band the DB
+        # constraint would reject at persist.
+        return None, None, None
     return parsed.salary_min, parsed.salary_max, parsed.currency
 
 
