@@ -25,4 +25,17 @@ Rules:
   the salary group). The value MUST be text copied character-for-character from
   the posting. Quote per role on that role, not on the posting. Do not quote
   `description` — the field is itself the verbatim span.
+- A non-empty field REQUIRES its quote — output without it is rejected: `title`
+  set on a role → that role's source_quotes MUST contain "title"; any salary_*
+  set on a role → that role's source_quotes MUST contain "salary"; `company`
+  set on the posting → the posting's source_quotes MUST contain "company".
+- Output shape example (values illustrative — always copy values from the actual
+  posting):
+  {"doc_type": "posting", "company": "We The Flywheel",
+   "source_quotes": {"company": "We The Flywheel"},
+   "roles": [{"title": "Agentic Engineer", "seniority": "unknown",
+              "stack": ["Claude Code", "Cursor", "Aider"],
+              "employment_type": "contract",
+              "source_quotes": {"title":
+                "Agentic Engineer — ship real software with AI coding agents"}}]}
 """

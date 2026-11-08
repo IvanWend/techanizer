@@ -1,6 +1,6 @@
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from techanizer.extraction.normalize import (
     Employment,
@@ -41,7 +41,16 @@ class _Verbatim(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    source_quotes: dict[str, str] = {}
+    # The description lands in the JSON schema the model sees: schema-following
+    # models (deepseek-v4.1-flash) skip fields the schema leaves undescribed.
+    source_quotes: dict[str, str] = Field(
+        default={},
+        description=(
+            "Verbatim evidence for this object's fields: {field name: exact substring "
+            "copied from the posting}. REQUIRED whenever this object sets a non-null "
+            'title, company, or salary_* field; the salary group uses key "salary".'
+        ),
+    )
 
     @field_validator("*", mode="before")
     @classmethod

@@ -15,6 +15,7 @@ import psycopg.types.json
 from dotenv import load_dotenv
 from langfuse import Langfuse, get_client, propagate_attributes
 from pydantic_ai import Agent, AgentRunError, UnexpectedModelBehavior
+from pydantic_ai.output import PromptedOutput
 
 from techanizer.extraction.prompt import SYSTEM_PROMPT
 from techanizer.extraction.schema import DocType, NormalizedRole, PostingExtraction
@@ -24,6 +25,7 @@ from techanizer.extraction.source_adapters import (
     to_extraction_input,
 )
 from techanizer.extraction.transform import transform
+from techanizer.models import resolve_model
 
 load_dotenv()
 
@@ -110,8 +112,15 @@ def pending(conn, sources=None, limit=None) -> list["RawRow"]:
 
 
 def build_agent(model: str, system_prompt: str, retries=2) -> Agent[None, PostingExtraction]:
+    # PromptedOutput, not pydantic-ai's default tool-call output: on DashScope,
+    # deepseek-v4.1-flash under-fills tool-call args (roles without
+    # source_quotes, most optional fields dropped, retry feedback ignored) but
+    # writes the full JSON as text. Validation and retries are identical.
     return Agent(
-        model=model, system_prompt=system_prompt, output_type=PostingExtraction, retries=retries
+        model=resolve_model(model),
+        system_prompt=system_prompt,
+        output_type=PromptedOutput(PostingExtraction),
+        retries=retries,
     )
 
 
@@ -176,8 +185,13 @@ async def _extract(agent: Any, payload: ExtractionInput, model: str) -> Outcome:
         )
 
     try:
+        # PromptedOutput writes the whole JSON as text, and this is a reasoning
+        # model — 60s per request was occasionally exceeded. The outer cap must
+        # budget for retries: 3 requests (retries=2) at 90s each, so 285s total.
+        # A timed-out row is not re-queued by pending() (its extraction_runs row
+        # survives), so the cap errs generous rather than tight.
         result = await asyncio.wait_for(
-            agent.run(payload.text, model_settings={"timeout": 60}), timeout=65.0
+            agent.run(payload.text, model_settings={"timeout": 90}), timeout=285.0
         )
         usage = result.usage
         # Held-out fields never reach the model, so the board's own JSON is the
@@ -198,7 +212,10 @@ async def _extract(agent: Any, payload: ExtractionInput, model: str) -> Outcome:
     except UnexpectedModelBehavior as exc:
         return Outcome(status="invalid", model=model, error=str(exc)[:500])
 
-    except (AgentRunError, TimeoutError) as exc:
+    except TimeoutError:
+        # str(TimeoutError) is empty — name the failure so run logs are readable.
+        return Outcome(status="error", model=model, error="extraction timed out")
+    except AgentRunError as exc:
         return Outcome(status="error", model=model, error=str(exc)[:500])
 
     except Exception as exc:
@@ -386,7 +403,7 @@ def parse_pipeline_args():
     parser.add_argument(
         "--model",
         type=str,
-        default="deepseek:deepseek-v4-flash",
+        default="alibaba:deepseek-v4.1-flash",
         help="Default name of the LLM model",
     )
 
