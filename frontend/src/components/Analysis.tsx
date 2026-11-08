@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { ContractAnswer } from './contract'
-import { streamAnswer, type StreamEvent } from '../lib/sse'
+import { streamAnswer, type StreamEvent, type ToolResultSummary } from '../lib/sse'
 import { statusFor } from '../lib/status'
 import { ui, questions, type Lang } from '../lib/i18n'
 import type { Answer } from '../lib/types'
@@ -15,11 +15,58 @@ function showRawError(message: string): boolean {
   )
 }
 
+type Step = { name: string; summary: ToolResultSummary | null }
+
+function toolSummary(summary: ToolResultSummary, t: typeof ui.en): string {
+  if (summary.kind === 'count') return t.results(summary.n)
+  if (summary.kind === 'company') return summary.company
+  return t.noMatch
+}
+
+// The per-call trace: one line per tool call, a pulse while unresolved and a
+// check + result summary once its tool_result arrives. Shows the REAL tool name
+// (vector_search / sql_query / role_detail), not a euphemism. Shared by the live
+// streaming pane (centered) and the collapsed trace above a finished answer.
+function TraceList({
+  steps,
+  lang,
+  centered = false,
+}: {
+  steps: Step[]
+  lang: Lang
+  centered?: boolean
+}) {
+  const t = ui[lang]
+  return (
+    <ol className={`space-y-1.5 ${centered ? 'flex flex-col items-center' : ''}`}>
+      {steps.map((step, i) => (
+        <li
+          key={i}
+          className={`flex items-center gap-2 font-mono text-[11px] text-[var(--text-secondary)] ${
+            centered ? 'justify-center' : ''
+          }`}
+        >
+          {step.summary === null ? (
+            <span className="h-1 w-1 animate-pulse rounded-full bg-cyan-400" />
+          ) : (
+            <span className="text-cyan-500">✓</span>
+          )}
+          <span>{step.name}</span>
+          {step.summary !== null && (
+            <span className="text-[var(--text-tertiary)]">· {toolSummary(step.summary, t)}</span>
+          )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 export function Analysis({ lang }: { lang: Lang }) {
   const t = ui[lang]
   const [query, setQuery] = useState(t.defaultQuery)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  const [steps, setSteps] = useState<Step[]>([])
   const [error, setError] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
   const [railOpen, setRailOpen] = useState(true)
@@ -40,7 +87,20 @@ export function Analysis({ lang }: { lang: Lang }) {
   function handleEvent(e: StreamEvent) {
     switch (e.event) {
       case 'tool_call':
-        setStatus(statusFor(e.data.name, lang))
+        // Real tool names live in the trace list below; the headline stays a
+        // generic phase line rather than a per-tool euphemism.
+        setSteps((prev) => [...prev, { name: e.data.name, summary: null }])
+        break
+      case 'tool_result':
+        // Pair FIFO by name onto the first unresolved step (DECISIONS: Frontend —
+        // a turn emits all calls before any result, so LIFO pairing swaps payloads).
+        setSteps((prev) => {
+          const idx = prev.findIndex((s) => s.name === e.data.name && s.summary === null)
+          if (idx === -1) return prev
+          const next = prev.slice()
+          next[idx] = { name: e.data.name, summary: e.data.summary }
+          return next
+        })
         break
       case 'status':
         if (e.data.phase === 'prose') setStatus(statusFor('prose', lang))
@@ -53,6 +113,7 @@ export function Analysis({ lang }: { lang: Lang }) {
       case 'error':
         setError(e.data.message)
         setStatus(null)
+        setSteps([])
         setStreaming(false)
         break
     }
@@ -65,6 +126,7 @@ export function Analysis({ lang }: { lang: Lang }) {
     setAnswer(null)
     setError(null)
     setStatus(t.thinking)
+    setSteps([])
     setStreaming(true)
 
     const controller = new AbortController()
@@ -81,6 +143,7 @@ export function Analysis({ lang }: { lang: Lang }) {
     controllerRef.current?.abort()
     controllerRef.current = null
     setStatus(null)
+    setSteps([])
     setStreaming(false)
   }
 
@@ -184,11 +247,14 @@ export function Analysis({ lang }: { lang: Lang }) {
 
         <section className="min-w-0 flex-1 overflow-y-auto">
           {streaming && answer === null && error === null ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-400" />
-              <p className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-primary)]">
-                {status ?? t.thinking}
-              </p>
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-4 py-8 text-center">
+              <div className="flex items-center gap-2.5">
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-400" />
+                <p className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-primary)]">
+                  {status ?? t.thinking}
+                </p>
+              </div>
+              {steps.length > 0 && <TraceList steps={steps} lang={lang} centered />}
             </div>
           ) : (
             <article className="mx-auto max-w-[820px] px-4 py-7 sm:px-8 sm:py-10">
@@ -213,6 +279,16 @@ export function Analysis({ lang }: { lang: Lang }) {
                       {t.complete}
                     </p>
                   </div>
+                  {steps.length > 0 && !answer.refused && (
+                    <details className="mb-6 border border-[var(--border)] bg-[var(--panel)]">
+                      <summary className="cursor-pointer list-none px-3 py-2 font-mono text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
+                        {t.ranSteps(steps.length)}
+                      </summary>
+                      <div className="border-t border-[var(--border-soft)] px-3 py-2.5">
+                        <TraceList steps={steps} lang={lang} />
+                      </div>
+                    </details>
+                  )}
                   <ContractAnswer answer={answer} lang={lang} />
                 </>
               ) : (

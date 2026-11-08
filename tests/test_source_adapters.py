@@ -1,7 +1,9 @@
+import json
+
 import pytest
 
 from techanizer.extraction.schema import NormalizedPosting, NormalizedRole
-from techanizer.extraction.source_adapters import GroundTruth, apply_ground_truth
+from techanizer.extraction.source_adapters import GroundTruth, apply_ground_truth, posting_url
 
 # Habr external_id 1000167887 in evals/gold_40_candidates.json, run through
 # to_extraction_input. None of it reaches the model: the prompt only ever sees
@@ -105,3 +107,30 @@ def test_board_json_outranks_a_quote_derived_band() -> None:
 )
 def test_no_op(posting: NormalizedPosting, truth: GroundTruth) -> None:
     assert apply_ground_truth(posting, truth) == posting
+
+
+@pytest.mark.parametrize(
+    "source, external_id, raw_text, expected",
+    [
+        ("hn", "48747990", "", "https://news.ycombinator.com/item?id=48747990"),
+        ("habr", "1000167887", "", "https://career.habr.com/vacancies/1000167887"),
+        (
+            "remotive",
+            "123",
+            json.dumps({"url": "https://remotive.com/remote-jobs/123"}),
+            "https://remotive.com/remote-jobs/123",
+        ),
+        (
+            "web3",
+            "150580",
+            json.dumps({"apply_url": "https://web3.career/r/wgTNwUTM__fnNFpS"}),
+            "https://web3.career/r/wgTNwUTM__fnNFpS",
+        ),
+        # A posting whose JSON carries no URL, and an unknown source, are None.
+        ("web3", "150580", "{}", None),
+        ("remotive", "123", json.dumps({"id": 123}), None),
+        ("unknown", "1", "{}", None),
+    ],
+)
+def test_posting_url(source: str, external_id: str, raw_text: str, expected: str | None) -> None:
+    assert posting_url(source, external_id, raw_text) == expected

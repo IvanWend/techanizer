@@ -47,7 +47,7 @@ async def _stream(question: str, lang: Lang) -> AsyncIterator[str]:
         conn = await to_thread.run_sync(_connect)
         stage1_agent = build_agent(conn=conn)
         prose_agent = build_prose_agent(lang=lang)
-        async for frame in stream_answer(stage1_agent, prose_agent, question, lang):
+        async for frame in stream_answer(stage1_agent, prose_agent, question, lang, conn=conn):
             yield frame
     except Exception as e:
         yield sse_event("error", {"message": error_message(e)})

@@ -9,11 +9,12 @@ from techanizer.agent.loop import (
     build_prose_agent,
     compose,
     default_stage2_model,
+    fill_quote_details,
     prose_model_settings,
-    resolve_prose_model,
 )
 from techanizer.agent.prompt import SYSTEM_PROMPT
 from techanizer.agent.schema import Fact, Payload, Prose, Quote, TableSpec
+from techanizer.models import resolve_model
 
 
 def test_stage1_prompt_does_not_invite_tool_fanout() -> None:
@@ -49,30 +50,36 @@ def test_build_agent_registers_three_tools() -> None:
 
 
 def test_build_prose_agent_is_offline_and_has_no_tools() -> None:
-    # defer_model_check=True, same as stage 1, so this builds without a key.
-    # lang="en", not "ru": RU now defaults to Kimi, which resolves eagerly
-    # against api.moonshot.cn and needs KIMI_API_KEY — not offline-buildable.
+    # Both locales default to Qwen, resolved against the China endpoint with a
+    # placeholder key, so this builds without ALIBABA_API_KEY (defer/no network).
     agent = build_prose_agent(lang="en")
     assert set(agent._function_toolset.tools) == set()
 
 
-def test_resolve_prose_model_passes_through_deepseek() -> None:
-    # Non-Kimi models stay a plain string, inferred lazily so no key is needed.
-    assert resolve_prose_model("deepseek:deepseek-v4-flash") == "deepseek:deepseek-v4-flash"
+def test_resolve_model_passes_through_deepseek() -> None:
+    # Non-special providers stay a plain string, inferred lazily so no key is used.
+    assert resolve_model("deepseek:deepseek-v4-flash") == "deepseek:deepseek-v4-flash"
 
 
-def test_prose_model_settings_kimi_skips_temperature() -> None:
-    # DeepSeek prose is pinned to temperature=0 for determinism; kimi-k3 rejects
-    # temperature=0 (400 "only 1 is allowed"), so its settings omit it and run on
-    # the model default.
+def test_resolve_model_alibaba_builds_offline() -> None:
+    # alibaba:* resolves to a concrete Model bound to the China endpoint, and does
+    # so without ALIBABA_API_KEY set (the placeholder key keeps CI network-free).
+    from pydantic_ai.models import Model
+
+    assert isinstance(resolve_model("alibaba:qwen3.8-flash"), Model)
+
+
+def test_prose_model_settings_temperature() -> None:
+    # Qwen/DeepSeek pin temperature=0 for determinism.
+    assert prose_model_settings("alibaba:qwen3.8-flash").get("temperature") == 0
     assert prose_model_settings("deepseek:deepseek-v4-flash").get("temperature") == 0
-    assert prose_model_settings("moonshotai:kimi-k3").get("temperature") is None
 
 
 def test_default_stage2_model_per_locale() -> None:
-    # RU prose is Kimi (the A/B winner); EN prose and the fallback stay DeepSeek.
-    assert default_stage2_model("ru") == DEFAULT_STAGE2_RU_MODEL == "moonshotai:kimi-k3"
-    assert default_stage2_model("en") == DEFAULT_STAGE2_MODEL
+    # Both locales run Qwen flash now; the per-locale split is kept so a locale can
+    # be repointed at its own model without touching the call sites.
+    assert default_stage2_model("ru") == DEFAULT_STAGE2_RU_MODEL == "alibaba:qwen3.8-flash"
+    assert default_stage2_model("en") == DEFAULT_STAGE2_MODEL == "alibaba:qwen3.8-flash"
 
 
 def test_assemble_fills_placeholders_and_attaches_labels() -> None:
@@ -132,3 +139,28 @@ def test_compose_skips_prose_on_refusal() -> None:
     answer = asyncio.run(compose(Payload(refused=True), "en", RaisingProse()))  # type: ignore[arg-type]
     assert answer.refused is True
     assert answer.headline == REFUSAL["en"]
+
+
+def test_fill_quote_details_attaches_link_and_description(monkeypatch) -> None:
+    # The posting link is code-attached from the (source, company, title) match,
+    # never model-copied: a hit fills url + description, a miss (no structured
+    # row names that triple) leaves the quote untouched — a missing link, not a
+    # failed answer.
+    from techanizer.storage.role import QuoteLink
+
+    def fake_link(conn, source: str, company: str | None, title: str | None, text: str = ""):
+        if (source, company, title) == ("hn", "Acme", "ML"):
+            return QuoteLink("https://news.ycombinator.com/item?id=7", "builds models")
+        return None
+
+    monkeypatch.setattr("techanizer.storage.role.quote_link", fake_link)
+    quotes = [
+        Quote(id=1, source="hn", company="Acme", title="ML", text="x"),
+        Quote(id=2, source="hn", company="Ghost", title="X", text="y"),
+    ]
+
+    fill_quote_details(object(), quotes)
+
+    assert quotes[0].url == "https://news.ycombinator.com/item?id=7"
+    assert quotes[0].description == "builds models"
+    assert quotes[1].url is None and quotes[1].description is None

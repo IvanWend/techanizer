@@ -39,7 +39,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-EXTRACT_MODEL = "deepseek:deepseek-v4-flash"
+EXTRACT_MODEL = "alibaba:deepseek-v4.1-flash"
 
 
 class WeeklySummary(NamedTuple):

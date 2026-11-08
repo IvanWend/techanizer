@@ -261,3 +261,28 @@ def to_extraction_input(source: str, external_id: str, raw_text: str) -> Extract
     if source == "remotive":
         return _remotive(raw, external_id)
     raise ValueError(f"unknown source: {source!r}")
+
+
+# Read-only link out to the original posting. Some boards carry it in the raw
+# JSON (Remotive `url`, Web3 `apply_url`), the rest reconstruct it from the id.
+HN_ITEM_URL = "https://news.ycombinator.com/item?id={external_id}"
+HABR_VACANCY_URL = "https://career.habr.com/vacancies/{external_id}"
+
+
+def posting_url(source: str, external_id: str, raw_text: str) -> str | None:
+    """The original posting URL, keyed the same way role_detail reads. Unknown
+    sources and postings whose JSON has no URL return None, never raise: the
+    read path must not crash the answer over a malformed row."""
+    if source == "hn":
+        return HN_ITEM_URL.format(external_id=external_id)
+    if source == "habr":
+        return HABR_VACANCY_URL.format(external_id=external_id)
+
+    raw = json.loads(raw_text)
+    if source == "remotive":
+        url = raw.get("url")
+    elif source == "web3":
+        url = raw.get("apply_url")
+    else:
+        return None
+    return url if isinstance(url, str) and url else None

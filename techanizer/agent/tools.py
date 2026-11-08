@@ -9,6 +9,21 @@ from techanizer.storage.vector_search import run
 # string ever crosses the model -> DB boundary.
 QueryName = Literal["skill_frequency", "salary_by_currency", "salary_by_seniority", "top_salaries"]
 
+_SENIORITY_VALUES = frozenset({"intern", "junior", "mid", "senior", "staff+"})
+_REMOTE_VALUES = frozenset({"remote", "hybrid", "onsite"})
+
+
+def _coerce_filter(value: str | list[str] | None, valid: frozenset[str]) -> list[str] | None:
+    # Tool-callers (Qwen especially) sometimes send a bare string instead of a
+    # list, or an out-of-vocabulary value. Accept both shapes and drop anything
+    # not in the enum, so a malformed filter degrades to "no filter" (None) rather
+    # than failing pydantic-ai validation and burning the tool's single retry.
+    if value is None:
+        return None
+    items = [value] if isinstance(value, str) else list(value)
+    kept = [v for v in items if v in valid]
+    return kept or None
+
 
 def make_sql_query(conn) -> Callable[..., list[dict[str, Any]]]:
     # Closure, not a conn param: a conn in the signature would leak into the tool
@@ -61,8 +76,8 @@ def make_vector_search(conn) -> Callable[..., list[dict[str, Any]]]:
         query: str,
         *,
         limit: int = 10,
-        seniority: list[Literal["intern", "junior", "mid", "senior", "staff+"]] | None = None,
-        remote: list[Literal["remote", "hybrid", "onsite"]] | None = None,
+        seniority: str | list[str] | None = None,
+        remote: str | list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Search roles by semantic and exact-keyword match to a query.
 
@@ -75,10 +90,18 @@ def make_vector_search(conn) -> Callable[..., list[dict[str, Any]]]:
         Args:
             query: Free-text query, embedded and matched against role text.
             limit: Maximum number of hits to return.
-            seniority: Restrict to these seniority levels; omit to search all.
-            remote: Restrict to these remote policies; omit to search all.
+            seniority: Restrict to these levels — intern, junior, mid, senior,
+                staff+ (a single value or a list); omit to search all.
+            remote: Restrict to these policies — remote, hybrid, onsite (a single
+                value or a list); omit to search all.
         """
-        hits = run(conn, query, limit=limit, seniority=seniority, remote=remote)
+        hits = run(
+            conn,
+            query,
+            limit=limit,
+            seniority=_coerce_filter(seniority, _SENIORITY_VALUES),
+            remote=_coerce_filter(remote, _REMOTE_VALUES),
+        )
         return [r._asdict() for r in hits]
 
     return vector_search
@@ -93,8 +116,9 @@ def make_role_detail(conn) -> Callable[..., dict[str, Any] | None]:
 
         The key (raw_posting_id, role_index) comes from a vector_search hit, not
         the internal `id` column. `source_quotes` holds the verbatim text grounding
-        each field. Salary figures are monthly in the role's own currency, never
-        converted.
+        each field; `url` is the read-only link to the original posting; and
+        `description` is the role's own text. Salary figures are monthly in the
+        role's own currency, never converted.
 
         Args:
             raw_posting_id: The posting id, as returned by a vector_search hit.

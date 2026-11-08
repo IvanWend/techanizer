@@ -33,14 +33,9 @@ def test_tool_schemas() -> None:
 
     search = tools["vector_search"].inputSchema["properties"]
     assert set(search) == {"query", "limit", "seniority", "remote"}
-    assert search["seniority"]["anyOf"][0]["items"]["enum"] == [
-        "intern",
-        "junior",
-        "mid",
-        "senior",
-        "staff+",
-    ]
-    assert search["remote"]["anyOf"][0]["items"]["enum"] == ["remote", "hybrid", "onsite"]
+    # Loosened to str | list[str] | None (see agent.tools._coerce_filter).
+    for key in ("seniority", "remote"):
+        assert {b.get("type") for b in search[key]["anyOf"]} == {"string", "array", "null"}
     desc = (tools["vector_search"].description or "").lower()
     for fact in ("similarity", "monthly"):
         assert fact in desc

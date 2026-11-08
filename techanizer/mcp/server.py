@@ -1,5 +1,5 @@
 import os
-from typing import Any, Literal
+from typing import Any
 
 import psycopg
 from mcp.server.fastmcp import FastMCP
@@ -33,8 +33,8 @@ def vector_search(
     query: str,
     *,
     limit: int = 10,
-    seniority: list[Literal["intern", "junior", "mid", "senior", "staff+"]] | None = None,
-    remote: list[Literal["remote", "hybrid", "onsite"]] | None = None,
+    seniority: str | list[str] | None = None,
+    remote: str | list[str] | None = None,
 ) -> list[dict[str, Any]]:
     with _connect() as conn:
         return make_vector_search(conn)(

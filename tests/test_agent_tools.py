@@ -55,6 +55,7 @@ _ROLE_DETAIL_KEYS = {
     "source_quotes",
     "source",
     "external_id",
+    "url",
 }
 
 
@@ -140,30 +141,34 @@ def test_top_salaries_shape(eval_conn) -> None:
 
 
 def test_vector_search_schema_contract() -> None:
-    # No DB: the whitelist (seniority/remote Literals) must survive docstring
-    # resolution as an enum, and the factory must stay pure (bare object()).
+    # No DB: the factory must stay pure (bare object()), and the loosened filter
+    # args (str | list[str] | None) must survive docstring resolution.
     fn = make_vector_search(object())
     td = Tool(fn).tool_def
 
     props = td.parameters_json_schema["properties"]
     assert set(props) == {"query", "limit", "seniority", "remote"}
-    # list[Literal] | None resolves to anyOf[array-with-enum, null].
-    assert props["seniority"]["anyOf"][0]["items"]["enum"] == [
-        "intern",
-        "junior",
-        "mid",
-        "senior",
-        "staff+",
-    ]
-    assert props["remote"]["anyOf"][0]["items"]["enum"] == [
-        "remote",
-        "hybrid",
-        "onsite",
-    ]
+    # seniority/remote accept a bare string, a list, or null: a tool-caller that
+    # sends the wrong shape degrades to "no filter" instead of failing validation
+    # and burning the tool's single retry (Qwen does this often).
+    for key in ("seniority", "remote"):
+        kinds = {branch.get("type") for branch in props[key]["anyOf"]}
+        assert kinds == {"string", "array", "null"}
 
     desc = (td.description or "").lower()
     for fact in ("similarity", "monthly"):
         assert fact in desc
+
+
+def test_vector_search_coerces_filter_args() -> None:
+    from techanizer.agent.tools import _REMOTE_VALUES, _SENIORITY_VALUES, _coerce_filter
+
+    # Bare string -> list; out-of-enum values dropped; all-invalid -> None (no filter).
+    assert _coerce_filter("senior", _SENIORITY_VALUES) == ["senior"]
+    assert _coerce_filter(["senior", "bogus"], _SENIORITY_VALUES) == ["senior"]
+    assert _coerce_filter(["bogus"], _SENIORITY_VALUES) is None
+    assert _coerce_filter(None, _REMOTE_VALUES) is None
+    assert _coerce_filter("remote", _REMOTE_VALUES) == ["remote"]
 
 
 def test_vector_search_shape(eval_conn, monkeypatch) -> None:
@@ -223,3 +228,53 @@ def test_role_detail_shape(eval_conn) -> None:
 
 def test_role_detail_missing(eval_conn) -> None:
     assert make_role_detail(eval_conn)(raw_posting_id=-1, role_index=-1) is None
+
+
+def test_quote_link_resolves_url_from_copied_fields(eval_conn) -> None:
+    # The link must resolve from exactly the fields a quote carries — source,
+    # company, title — because that is what the model copies verbatim. Pick a
+    # real row's triple rather than pinning an id, so re-snapshots don't break it.
+    from techanizer.storage.role import quote_link
+
+    with eval_conn.cursor() as cur:
+        cur.execute(
+            "SELECT r.source, s.company, s.title FROM structured_postings s "
+            "JOIN raw_postings r ON r.id = s.raw_posting_id "
+            "WHERE s.company IS NOT NULL AND s.title IS NOT NULL "
+            "ORDER BY s.raw_posting_id LIMIT 1"
+        )
+        row = cur.fetchone()
+    assert row is not None
+
+    link = quote_link(eval_conn, *row)
+
+    assert link is not None
+    assert link.url is not None  # every source resolves a URL
+
+
+def test_quote_link_missing_triple_returns_none(eval_conn) -> None:
+    from techanizer.storage.role import quote_link
+
+    assert quote_link(eval_conn, "hn", "Ghost Co", "Nothing") is None
+
+
+def test_quote_link_text_fallback(eval_conn) -> None:
+    # A quote whose company/title the model left empty still links via its
+    # verbatim span (>= MIN_QUOTE_TEXT_MATCH) within the source.
+    from techanizer.storage.role import quote_link
+
+    with eval_conn.cursor() as cur:
+        cur.execute(
+            "SELECT r.source, q.v FROM structured_postings s "
+            "JOIN raw_postings r ON r.id = s.raw_posting_id, "
+            "     jsonb_each_text(s.source_quotes) AS q(k, v) "
+            "WHERE length(q.v) >= 40 AND s.company IS NOT NULL AND s.title IS NOT NULL "
+            "ORDER BY s.raw_posting_id LIMIT 1"
+        )
+        row = cur.fetchone()
+    assert row is not None
+
+    link = quote_link(eval_conn, row[0], None, None, row[1])
+
+    assert link is not None
+    assert link.url is not None

@@ -19,13 +19,14 @@ from techanizer.extraction.source_adapters import (
     to_extraction_input,
 )
 from techanizer.extraction.transform import transform
+from techanizer.models import resolve_model
 
 load_dotenv()
 
 CANDIDATES_PATH = "evals/gold_40_candidates.json"
 OUTPUT_PATH = "evals/gold_labeled.json"
 
-LABELER_MODEL = "deepseek:deepseek-v4-pro"
+LABELER_MODEL = "alibaba:glm-5.3"
 SAMPLES = 3
 TEMPERATURE = 0.3
 CONCURRENCY = 3
@@ -187,7 +188,7 @@ async def run(
     rows: list[dict[str, Any]], model: str, samples: int, output_path: str
 ) -> dict[str, dict[str, Any]]:
     agent = Agent(
-        model=model,
+        model=resolve_model(model),
         system_prompt=LABELER_PROMPT,
         output_type=GoldPosting,
         retries=2,

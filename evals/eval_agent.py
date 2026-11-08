@@ -8,11 +8,8 @@ from typing import NamedTuple
 
 import psycopg
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.models import infer_model
-from pydantic_ai.providers.moonshotai import MoonshotAIProvider
 from pydantic_ai.settings import ModelSettings
 
 from techanizer.agent.loop import (
@@ -23,19 +20,16 @@ from techanizer.agent.loop import (
     compose,
 )
 from techanizer.agent.schema import Answer, Payload
+from techanizer.models import resolve_model
 from techanizer.storage import analytics
 
 load_dotenv()
 
 DEFAULT_MODEL = DEFAULT_STAGE1_MODEL
 
-# The judge is a second model (Kimi) that grades what the deterministic graders
-# can't: whether the headline directly answers and key_finding is the strongest
-# claim. The user's key is a China Moonshot key (KIMI_API_KEY), so the client
-# must point at api.moonshot.cn — pydantic-ai's MoonshotAI provider hardcodes
-# the international api.moonshot.ai and 401s on this key.
-JUDGE_MODEL = "moonshotai:kimi-k3"
-JUDGE_BASE_URL = "https://api.moonshot.cn/v1"
+# The judge is a second model that grades what the deterministic graders can't:
+# whether the headline directly answers and key_finding is the strongest claim.
+JUDGE_MODEL = "alibaba:glm-5.3"
 
 
 class Verdict(BaseModel):
@@ -54,11 +48,8 @@ If both hold, pass_=true; otherwise pass_=false and explain in reason."""
 
 
 def build_judge() -> Agent[None, Verdict]:
-    client = AsyncOpenAI(base_url=JUDGE_BASE_URL, api_key=os.environ["KIMI_API_KEY"])
-    provider = MoonshotAIProvider(openai_client=client)
-    model = infer_model(JUDGE_MODEL, provider_factory=lambda _name: provider)
     return Agent(
-        model,
+        resolve_model(JUDGE_MODEL),
         system_prompt=JUDGE_PROMPT,
         output_type=Verdict,
     )
@@ -770,8 +761,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def _judge_questions() -> list[Question]:
-    if not os.environ.get("KIMI_API_KEY"):
-        print("KIMI_API_KEY unset — skipping llm-judge questions")
+    if not os.environ.get("ALIBABA_API_KEY"):
+        print("ALIBABA_API_KEY unset — skipping llm-judge questions")
         return []
     judge = build_judge()
     return [

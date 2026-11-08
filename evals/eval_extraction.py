@@ -14,7 +14,7 @@ load_dotenv()
 CANDIDATES_PATH = "evals/gold_40_candidates.json"
 GOLD_PATH = "evals/gold_labeled.json"
 
-DEFAULT_MODEL = "deepseek:deepseek-v4-flash"
+DEFAULT_MODEL = "alibaba:deepseek-v4.1-flash"
 CONCURRENCY = 5
 
 # Discrete fields scored exactly. `stack` is a set; salary is ints/strings.

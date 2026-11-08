@@ -27,7 +27,7 @@ flowchart LR
         raw[("Postgres raw postings<br/>idempotent upsert")]
     end
     subgraph EXTRACT["Extraction"]
-        ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4 Flash)<br/>→ structured roles + verbatim quotes"]
+        ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4.1 Flash)<br/>→ structured roles + verbatim quotes"]
     end
     subgraph STORE["Storage"]
         db[("Postgres + pgvector<br/>bge-m3 (1024-dim)")]
@@ -37,7 +37,7 @@ flowchart LR
         vec["Hybrid search<br/>(pgvector + tsvector, RRF)"]
     end
     subgraph AGENT["Agent"]
-        agent["Two-stage agent<br/>(DeepSeek V4 Pro → Kimi/DS)<br/>tool-calling → payload → prose"]
+        agent["Two-stage agent<br/>(GLM 5.3 → Qwen Flash)<br/>tool-calling → payload → prose"]
     end
     subgraph SERVE["Serving"]
         ui["FastAPI + SSE · MCP server · React UI"]
@@ -56,11 +56,11 @@ flowchart LR
 
 | Stage | Model |
 |---|---|
-| Extraction | DeepSeek V4 Flash |
-| Agent stage 1 (tool-calling) | DeepSeek V4 Pro |
-| Agent stage 2 (prose) | DeepSeek V4 Pro (EN), Kimi K3 (RU) |
+| Extraction | DeepSeek V4.1 Flash (Alibaba) |
+| Agent stage 1 (tool-calling) | GLM 5.3 (Alibaba) |
+| Agent stage 2 (prose) | Qwen 3.8 Flash (Alibaba, EN + RU) |
 | Embeddings | `bge-m3` (1024-dim), local via Ollama |
-| Eval judge | Kimi K3 |
+| Eval judge | GLM 5.3 (Alibaba) |
 
 
 ## Evaluation
@@ -86,7 +86,7 @@ live board.
 
 - Python 3.13, [uv](https://docs.astral.sh/uv/), and Docker Compose
 - PostgreSQL client (`psql`)
-- A DeepSeek API key
+- An Alibaba Cloud (DashScope) API key
 - Ollama with the `bge-m3` embedding model
 - A Web3.career API token if that source is enabled
 
@@ -147,8 +147,8 @@ uv run python -m techanizer.mcp.server
 ```
 
 Configure the MCP host with absolute paths and put `DATABASE_URL` and
-`OLLAMA_BASE_URL` in the host's `env` block. The MCP server does not require a
-DeepSeek key because the host supplies the model.
+`OLLAMA_BASE_URL` in the host's `env` block. The MCP server needs no model API
+key — its tools query the database directly.
 
 ## Project layout
 

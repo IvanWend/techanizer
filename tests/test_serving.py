@@ -10,14 +10,16 @@ from pydantic_ai import (
     Agent,
     AgentRunResultEvent,
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
 )
 from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ToolReturnPart
 
 from techanizer.agent.locale import Lang
 from techanizer.agent.schema import Answer, Payload, Prose, Quote, Table, TableSpec
 from techanizer.serving.api_key import ApiKey
 from techanizer.serving.app import app, create_app
-from techanizer.serving.sse import sse_event, stream_answer
+from techanizer.serving.sse import sse_event, stream_answer, summarize_tool_result
 
 # Payload values come from the corpus, not invention: gold_40_candidates.json
 # row 1 (hn 48747990, "We The Flywheel") is the posting DECISIONS: schema cites
@@ -171,6 +173,39 @@ def test_stream_answer_maps_events_to_frames() -> None:
 def test_stream_answer_emits_error_frame() -> None:
     stub = _StubStage1Agent([], exc=RuntimeError("boom"))
     assert _collect(stub, _StubProseAgent(), "q") == ['event: error\ndata: {"message": "boom"}\n\n']
+
+
+def test_stream_answer_emits_tool_result() -> None:
+    events = [
+        FunctionToolCallEvent(
+            part=cast(Any, SimpleNamespace(tool_name="vector_search")),
+            args_valid=True,
+        ),
+        FunctionToolResultEvent(
+            part=ToolReturnPart(tool_name="vector_search", content=[{"company": "Acme"}]),
+        ),
+        AgentRunResultEvent(result=cast(Any, SimpleNamespace(output=_PAYLOAD))),
+    ]
+
+    frames = _collect(_StubStage1Agent(events), _StubProseAgent(), "mlops engineer")
+    assert frames[0] == 'event: tool_call\ndata: {"name": "vector_search"}\n\n'
+    expected_result = (
+        'event: tool_result\ndata: {"name": "vector_search", '
+        '"summary": {"kind": "count", "n": 1}}\n\n'
+    )
+    assert frames[1] == expected_result
+    assert frames[2] == 'event: status\ndata: {"phase": "prose"}\n\n'
+
+
+def test_summarize_tool_result_shapes() -> None:
+    # role_detail found: company + title; miss: none. Lists count their rows.
+    assert summarize_tool_result("role_detail", {"company": "Acme", "title": "MLOps"}) == {
+        "kind": "company",
+        "company": "Acme · MLOps",
+    }
+    assert summarize_tool_result("role_detail", None) == {"kind": "none"}
+    assert summarize_tool_result("vector_search", [{}, {}]) == {"kind": "count", "n": 2}
+    assert summarize_tool_result("sql_query", []) == {"kind": "count", "n": 0}
 
 
 def test_stream_answer_emits_refusal_without_prose() -> None:

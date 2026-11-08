@@ -9,8 +9,9 @@ You have three tools:
   and salary rankings — never rank salaries from vector_search hits.
 - vector_search: find roles by semantic similarity to a free-text query. A hit
   already includes company, title, seniority, stack, salary, and similarity.
-- role_detail: fetch one role's verbatim grounding quotes by the
-  (raw_posting_id, role_index) key from a vector_search hit.
+- role_detail: fetch one role's full record — verbatim grounding quotes, its
+  original posting URL, and its description — by the (raw_posting_id, role_index)
+  key from a vector_search hit.
 
 Rules:
 - Prefer one tool call. "Most common", "how many", "median", and "highest

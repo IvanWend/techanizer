@@ -20,6 +20,17 @@ class Quote(BaseModel):
         description="Role title, copied from the structured record.",
     )
     source: str = Field(description="Board the posting came from (hn, remotive, web3, habr).")
+    # Filled by code from the (source, company, title) match after stage 2 — not
+    # by the model: Qwen drops optional strings it is told to copy, but it copies
+    # company/title/source exactly (the verbatim grader relies on that).
+    url: str | None = Field(
+        default=None,
+        description="Original posting URL, read-only link out.",
+    )
+    description: str | None = Field(
+        default=None,
+        description="The role's description, copied from the structured record.",
+    )
     seniority: str | None = Field(
         default=None,
         description="Seniority level from the structured record.",

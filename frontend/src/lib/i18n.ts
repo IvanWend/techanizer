@@ -25,6 +25,10 @@ type Messages = {
   salaryNotStated: string
   perMonth: string
   more: (n: number) => string
+  // In-progress tool trace.
+  results: (n: number) => string
+  noMatch: string
+  ranSteps: (n: number) => string
 }
 
 const en: Messages = {
@@ -46,6 +50,9 @@ const en: Messages = {
   salaryNotStated: 'Salary not stated',
   perMonth: '/mo',
   more: (n) => `+${n} more`,
+  results: (n) => `${n} results`,
+  noMatch: 'no match',
+  ranSteps: (n) => `Analysed the corpus · ${n} step${n === 1 ? '' : 's'}`,
 }
 
 const ru: Messages = {
@@ -67,6 +74,9 @@ const ru: Messages = {
   salaryNotStated: 'Зарплата не указана',
   perMonth: '/мес',
   more: (n) => `+${n} ещё`,
+  results: (n) => `${n} результатов`,
+  noMatch: 'совпадений нет',
+  ranSteps: (n) => `Анализ корпуса · шагов: ${n}`,
 }
 
 export const ui: Record<Lang, Messages> = { en, ru }

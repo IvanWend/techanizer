@@ -14,7 +14,7 @@ flowchart LR
         raw[("Postgres raw postings<br/>idempotent upsert")]
     end
     subgraph EXTRACT["Extraction"]
-        ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4 Flash)<br/>→ structured roles + verbatim quotes"]
+        ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4.1 Flash)<br/>→ structured roles + verbatim quotes"]
     end
     subgraph STORE["Storage"]
         db[("Postgres + pgvector<br/>bge-m3 (1024-dim)")]
@@ -24,7 +24,7 @@ flowchart LR
         vec["Hybrid search<br/>(pgvector + tsvector, RRF)"]
     end
     subgraph AGENT["Agent"]
-        agent["Two-stage agent<br/>(DeepSeek V4 Pro → Kimi/DS)<br/>tool-calling → payload → prose"]
+        agent["Two-stage agent<br/>(GLM 5.3 → Qwen Flash)<br/>tool-calling → payload → prose"]
     end
     subgraph SERVE["Serving"]
         ui["FastAPI + SSE · MCP server · React UI"]

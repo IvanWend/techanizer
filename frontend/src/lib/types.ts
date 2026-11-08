@@ -17,6 +17,8 @@ export type Quote = {
   company: string | null
   title: string | null
   source: string
+  url?: string | null
+  description?: string | null
   seniority?: string | null
   stack?: string[]
   salary_min?: number | null

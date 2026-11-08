@@ -1,5 +1,6 @@
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Icon } from './Icon'
 import { ui, type Lang } from '../lib/i18n'
 import { makeHighlightPlugin } from '../lib/highlight'
 import type { Answer, Cell, Quote, Table } from '../lib/types'
@@ -188,10 +189,22 @@ function QuoteCard({ quote, lang }: { quote: Quote; lang: Lang }) {
             {quote.title ?? ''}
           </p>
         </div>
-        {quote.source && (
-          <span className="shrink-0 rounded-[3px] border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-tertiary)]">
+        {quote.url ? (
+          <a
+            href={quote.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex shrink-0 items-center gap-1 rounded-[3px] border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-tertiary)] hover:border-cyan-400/60 hover:text-cyan-500"
+          >
             {quote.source}
-          </span>
+            <Icon name="external" size={10} />
+          </a>
+        ) : (
+          quote.source && (
+            <span className="shrink-0 rounded-[3px] border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-tertiary)]">
+              {quote.source}
+            </span>
+          )
         )}
       </div>
       <div className="space-y-2.5 border-t border-[var(--border-soft)] p-3">
@@ -219,6 +232,11 @@ function QuoteCard({ quote, lang }: { quote: Quote; lang: Lang }) {
               </span>
             )}
           </div>
+        )}
+        {quote.description && (
+          <p className="line-clamp-3 text-[12px] leading-5 text-[var(--text-secondary)]">
+            {quote.description}
+          </p>
         )}
         <blockquote className="border-l-2 border-[var(--border)] pl-3 text-[12px] italic leading-5 text-[var(--text-secondary)]">
           “{quote.text}”
