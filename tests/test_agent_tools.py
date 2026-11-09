@@ -11,11 +11,11 @@ from techanizer.storage.embed import EMBED_DIM
 load_dotenv()
 
 
-# The tool wraps vector_search.run, which embeds the query over Ollama. The
+# The tool wraps vector_search.run, which embeds the query over DashScope. The
 # execution tests patch embed with a constant non-zero vector (zero would make
 # pgvector's cosine distance undefined) so they run against the frozen snapshot
 # offline; they assert shape and filter behaviour, not semantic ranking.
-def _fake_embed(texts: list[str]) -> list[list[float]]:
+def _fake_embed(texts: list[str], text_type: str = "query") -> list[list[float]]:
     return [[1.0] * EMBED_DIM for _ in texts]
 
 

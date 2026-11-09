@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import time
 from typing import NamedTuple
 
 import psycopg
@@ -11,14 +12,20 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-EMBED_MODEL = "bge-m3"
+EMBED_MODEL = "text-embedding-v4"
 EMBED_DIM = 1024
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+DASHSCOPE_EMBED_URL = (
+    "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding"
+)
 
-# bge-m3 retrieval is asymmetric: the query carries this instruction, the stored
-# role text (build_text) carries none. FlagEmbedding's shipped pattern for
-# short-query -> long-passage search; documents stay un-prefixed.
-QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
+# Retrieval stays asymmetric, but the role moved from a query prefix (bge-m3's
+# QUERY_INSTRUCTION) into DashScope's text_type parameter: "query" for short
+# user queries, "document" (default) for the stored role text.
+DASHSCOPE_BATCH_LIMIT = 10
+
+# Transient TLS failures (SSLEOFError mid-run, 2026-11-09) must not kill the
+# unattended weekly scheduler, so each embed call retries with backoff.
+EMBED_RETRIES = 3
 
 
 class Role(NamedTuple):
@@ -81,14 +88,47 @@ def pending(conn, limit=None) -> list["Role"]:
         return [Role(*row) for row in cur.fetchall()]
 
 
-def embed(texts: list[str]) -> list[list[float]]:
-    resp = requests.post(
-        f"{OLLAMA_BASE_URL}/api/embed",
-        json={"model": EMBED_MODEL, "input": texts},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    embeddings: list[list[float]] = resp.json()["embeddings"]
+def embed(texts: list[str], text_type: str = "document") -> list[list[float]]:
+    """Embed up to DASHSCOPE_BATCH_LIMIT texts; `text_type="query"` marks short
+    user queries, "document" (default) the stored role text."""
+    if len(texts) > DASHSCOPE_BATCH_LIMIT:
+        raise ValueError(
+            f"DashScope caps a request at {DASHSCOPE_BATCH_LIMIT} texts, got {len(texts)}"
+        )
+    api_key = os.environ.get("ALIBABA_API_KEY")
+    if not api_key:
+        raise RuntimeError("ALIBABA_API_KEY is not set")
+
+    payload: list[dict] = []
+    for attempt in range(EMBED_RETRIES):
+        try:
+            resp = requests.post(
+                DASHSCOPE_EMBED_URL,
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": EMBED_MODEL,
+                    "input": {"texts": texts},
+                    "parameters": {"text_type": text_type, "dimension": EMBED_DIM},
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            payload = resp.json()["output"]["embeddings"]
+            break
+        except requests.RequestException as exc:
+            if attempt == EMBED_RETRIES - 1:
+                raise
+            logger.warning(
+                "DashScope embed attempt %d/%d failed (%s), retrying",
+                attempt + 1,
+                EMBED_RETRIES,
+                exc,
+            )
+            time.sleep(2**attempt)
+
+    # text_index is the position in the request; sort so order never depends
+    # on the server's response ordering.
+    embeddings = [item["embedding"] for item in sorted(payload, key=lambda i: i["text_index"])]
     assert len(embeddings) == len(texts)
     assert all(len(v) == EMBED_DIM for v in embeddings)
     return embeddings
@@ -118,7 +158,7 @@ def persist_embeddings(conn, rows: list[tuple[int, int, str, list[float]]]) -> N
         cur.executemany(UPSERT_EMBEDDING_SQL, values)
 
 
-def run(conn, roles: list[Role], chunk_size: int = 32) -> Stats:
+def run(conn, roles: list[Role], chunk_size: int = DASHSCOPE_BATCH_LIMIT) -> Stats:
     keep: list[tuple[Role, str]] = []
     skipped = 0
     for role in roles:
@@ -144,9 +184,14 @@ def run(conn, roles: list[Role], chunk_size: int = 32) -> Stats:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Embed structured postings with bge-m3")
+    parser = argparse.ArgumentParser(description="Embed structured postings with DashScope")
     parser.add_argument("--limit", type=int, default=None, help="Max roles to embed")
-    parser.add_argument("--chunk-size", type=int, default=32, help="Roles per embed request")
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=DASHSCOPE_BATCH_LIMIT,
+        help="Roles per embed request (DashScope caps at 10)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Preview without embedding")
     return parser.parse_args()
 

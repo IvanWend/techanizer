@@ -5,9 +5,11 @@ from uuid import uuid4
 
 import psycopg
 import pytest
+import requests
 
 from techanizer.ingestion.load import LoadStats
 from techanizer.ops.run_log import begin_run, end_run
+from techanizer.storage import embed as embed_module
 from techanizer.storage.analytics import (
     MonthSalary,
     MonthSkill,
@@ -39,6 +41,97 @@ from techanizer.storage.vector_search import (
 )
 def test_to_vector_text(vec: list[float], expected: str) -> None:
     assert to_vector_text(vec) == expected
+
+
+class _FakeResponse:
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self) -> dict:
+        return self._payload
+
+
+# DashScope keys each embedding by text_index and carries the retrieval role
+# (query vs document) as a parameter — the pair bge-m3's QUERY_INSTRUCTION
+# used to encode. The parser must restore request order and forward the role.
+@pytest.mark.parametrize(
+    ("text_type", "expected_param"),
+    [("document", "document"), ("query", "query")],
+)
+def test_embed_request_contract(
+    monkeypatch: pytest.MonkeyPatch, text_type: str, expected_param: str
+) -> None:
+    monkeypatch.setattr(embed_module, "EMBED_DIM", 2)
+    captured: dict = {}
+
+    def fake_post(
+        url: str, headers: dict | None = None, json: dict | None = None, timeout: int | None = None
+    ) -> _FakeResponse:
+        captured.update(json or {})
+        return _FakeResponse(
+            {
+                "output": {
+                    "embeddings": [
+                        {"text_index": 1, "embedding": [0.4, 0.4]},
+                        {"text_index": 0, "embedding": [0.1, 0.2]},
+                    ]
+                }
+            }
+        )
+
+    monkeypatch.setattr(embed_module.requests, "post", fake_post)
+    assert embed_module.embed(["b", "a"], text_type=text_type) == [[0.1, 0.2], [0.4, 0.4]]
+    assert captured["input"] == {"texts": ["b", "a"]}
+    assert captured["parameters"] == {"text_type": expected_param, "dimension": 2}
+
+
+def test_embed_rejects_oversized_batch() -> None:
+    with pytest.raises(ValueError, match="10 texts"):
+        embed_module.embed(["x"] * 11)
+
+
+def test_embed_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ALIBABA_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="ALIBABA_API_KEY"):
+        embed_module.embed(["x"])
+
+
+# The weekly scheduler runs unattended: a transient TLS failure (seen live,
+# 2026-11-09) is retried, not fatal.
+def test_embed_retries_transient_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(embed_module, "EMBED_DIM", 2)
+    monkeypatch.setattr(embed_module.time, "sleep", lambda _s: None)
+    calls: list[int] = []
+
+    def flaky_post(
+        url: str, headers: dict | None = None, json: dict | None = None, timeout: int | None = None
+    ) -> _FakeResponse:
+        calls.append(1)
+        if len(calls) < 3:
+            raise requests.ConnectionError("transient TLS blip")
+        return _FakeResponse(
+            {"output": {"embeddings": [{"text_index": 0, "embedding": [0.1, 0.2]}]}}
+        )
+
+    monkeypatch.setattr(embed_module.requests, "post", flaky_post)
+    assert embed_module.embed(["a"]) == [[0.1, 0.2]]
+    assert len(calls) == 3
+
+
+def test_embed_raises_after_exhausted_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(embed_module.time, "sleep", lambda _s: None)
+
+    def dead_post(
+        url: str, headers: dict | None = None, json: dict | None = None, timeout: int | None = None
+    ) -> _FakeResponse:
+        raise requests.ConnectionError("down for good")
+
+    monkeypatch.setattr(embed_module.requests, "post", dead_post)
+    with pytest.raises(requests.ConnectionError):
+        embed_module.embed(["a"])
 
 
 # Suffixes are data-driven from eval_retrieval: the ambiguous tokens that

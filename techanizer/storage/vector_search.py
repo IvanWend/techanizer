@@ -9,7 +9,7 @@ import psycopg
 from dotenv import load_dotenv
 
 from techanizer.ingestion.retention import WINDOW_DAYS
-from techanizer.storage.embed import QUERY_INSTRUCTION, embed, to_vector_text
+from techanizer.storage.embed import embed, to_vector_text
 
 load_dotenv()
 
@@ -219,7 +219,7 @@ def run(
     seniority: Sequence[str] | None = None,
     remote: Sequence[str] | None = None,
 ) -> list[SearchHit]:
-    vec = embed([QUERY_INSTRUCTION + expand_query(query)])[0]
+    vec = embed([expand_query(query)], text_type="query")[0]
     return search(
         conn,
         to_vector_text(vec),
