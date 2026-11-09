@@ -95,7 +95,7 @@ live board.
 ```bash
 uv sync
 cp .env.example .env
-# Fill in DEEPSEEK_API_KEY, DATABASE_URL, and other required values.
+# Fill in ALIBABA_API_KEY, DATABASE_URL, and other required values.
 set -a; . ./.env; set +a
 ```
 
@@ -137,6 +137,14 @@ curl --get 'http://localhost:8000/ask' \
 If `ASK_API_KEY` is set, add `-H "Authorization: Bearer $ASK_API_KEY"` to the
 second command. The browser key is intentionally only a shared demo gate, not
 user authentication — it is visible to anyone who can load the frontend.
+
+## Deployment
+
+The same image runs in production on an Aliyun ECS VM behind Caddy TLS: the
+`Dockerfile` (Node build stage + Python runtime) builds one image,
+`compose.prod.yml` runs it with db and caddy, and the `Caddyfile` fronts
+`techanizer.tech` with automatic HTTPS. `docs/DEPLOY.md` is the step-by-step
+runbook — VM prep, secrets, data restore, smoke tests, and the TLS cutover.
 
 ## MCP access
 
