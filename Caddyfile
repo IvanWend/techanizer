@@ -1,0 +1,18 @@
+# HTTPS front door for techanizer.tech.
+#
+# `tls internal` = Caddy's self-signed dress-rehearsal cert: we deploy and
+# smoke-test before DNS goes live. Going live = delete both `tls internal`
+# lines and `docker compose -f compose.prod.yml restart caddy`; Caddy then
+# obtains and renews real Let's Encrypt certs automatically (needs DNS
+# resolving + ports 80/443 reachable).
+
+techanizer.tech {
+	tls internal
+	reverse_proxy app:8000
+}
+
+www.techanizer.tech {
+	tls internal
+	# Canonical: one hostname in visitors' address bars.
+	redir https://techanizer.tech{uri} permanent
+}

@@ -1,0 +1,69 @@
+# Production stack for the Aliyun HK VM (47.86.2.120, techanizer.tech).
+# VM only: on the dev box it would collide with the dev project — the -prod
+# project/volume names keep an accidental `up` here isolated.
+# Usage: docker compose -f compose.prod.yml <cmd>   (.env sits next to it)
+name: techanizer-prod
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: techanizer
+      # :? turns a missing var into a hard error, not a silent default.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: techanizer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    # No published port: psql goes through `docker compose exec`.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techanizer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      args:
+        # Baked into the frontend bundle by the Node build stage.
+        VITE_ASK_API_KEY: ${ASK_API_KEY:?set ASK_API_KEY in .env}
+    environment:
+      # Compose owns this string: host is the service name (not localhost),
+      # so .env can't carry a dev-style URL that points the app at nothing.
+      DATABASE_URL: postgresql://techanizer:${POSTGRES_PASSWORD}@db:5432/techanizer
+      ALIBABA_API_KEY: ${ALIBABA_API_KEY:?set ALIBABA_API_KEY in .env}
+      # Same value as the build arg: the server side of the same gate.
+      ASK_API_KEY: ${ASK_API_KEY:?}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-10}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Liveness only — /health does not touch the db.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: techanizer_pgdata_prod
+  caddy_data:
+  caddy_config:
