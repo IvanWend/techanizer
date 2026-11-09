@@ -24,7 +24,7 @@ systemctl enable --now docker
 
 ```bash
 # VM
-git clone https://github.com/IvanWend/remote-job-search-agent.git /opt/techanizer
+git clone https://github.com/IvanWend/techanizer.git /opt/techanizer
 cd /opt/techanizer
 
 # Two secrets generated fresh for prod — don't reuse dev values.
