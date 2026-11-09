@@ -64,6 +64,9 @@ class _FakeResponse:
 def test_embed_request_contract(
     monkeypatch: pytest.MonkeyPatch, text_type: str, expected_param: str
 ) -> None:
+    # embed() checks the key before the (faked) request; CI has no
+    # ALIBABA_API_KEY, so set a dummy one to keep the test hermetic.
+    monkeypatch.setenv("ALIBABA_API_KEY", "test-key")
     monkeypatch.setattr(embed_module, "EMBED_DIM", 2)
     captured: dict = {}
 
@@ -102,6 +105,7 @@ def test_embed_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
 # The weekly scheduler runs unattended: a transient TLS failure (seen live,
 # 2026-11-09) is retried, not fatal.
 def test_embed_retries_transient_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALIBABA_API_KEY", "test-key")
     monkeypatch.setattr(embed_module, "EMBED_DIM", 2)
     monkeypatch.setattr(embed_module.time, "sleep", lambda _s: None)
     calls: list[int] = []
@@ -122,6 +126,7 @@ def test_embed_retries_transient_failures(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_embed_raises_after_exhausted_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALIBABA_API_KEY", "test-key")
     monkeypatch.setattr(embed_module.time, "sleep", lambda _s: None)
 
     def dead_post(
