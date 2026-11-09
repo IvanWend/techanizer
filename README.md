@@ -59,7 +59,7 @@ flowchart LR
 | Extraction | DeepSeek V4.1 Flash (Alibaba) |
 | Agent stage 1 (tool-calling) | GLM 5.3 (Alibaba) |
 | Agent stage 2 (prose) | Qwen 3.8 Flash (Alibaba, EN + RU) |
-| Embeddings | `bge-m3` (1024-dim), local via Ollama |
+| Embeddings | Qwen3 text-embedding-v4 (Alibaba, 1024-dim) |
 | Eval judge | GLM 5.3 (Alibaba) |
 
 
@@ -75,8 +75,9 @@ live board.
   stitched bullet fragments, not fabrications.
 - **Agent eval** (deterministic, semantic, refusal, injection, and cross-language
   probes, 3 runs each): 59/60 on the frozen snapshot.
-- **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 0.96,
-  precision@10 0.73. Hybrid dense + lexical (tsvector) legs fused by reciprocal rank.
+- **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 1.00,
+  precision@10 0.92 (Qwen3 text-embedding-v4). Hybrid dense + lexical (tsvector) legs fused by
+  reciprocal rank. bge-m3 baseline: MRR 0.96, precision@10 0.73.
 - **Tests:** 253 unit/contract/serving/integration tests, plus the above LLM
   evals.
 
@@ -87,7 +88,6 @@ live board.
 - Python 3.13, [uv](https://docs.astral.sh/uv/), and Docker Compose
 - PostgreSQL client (`psql`)
 - An Alibaba Cloud (DashScope) API key
-- Ollama with the `bge-m3` embedding model
 - A Web3.career API token if that source is enabled
 
 ### Install and configure
@@ -147,8 +147,8 @@ uv run python -m techanizer.mcp.server
 ```
 
 Configure the MCP host with absolute paths and put `DATABASE_URL` and
-`OLLAMA_BASE_URL` in the host's `env` block. The MCP server needs no model API
-key — its tools query the database directly.
+`ALIBABA_API_KEY` in the host's `env` block — the `vector_search` tool embeds
+the query, so it needs the model key even though the SQL tools do not.
 
 ## Project layout
 
