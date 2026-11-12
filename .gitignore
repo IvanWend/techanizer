@@ -8,11 +8,10 @@ __pycache__/
 
 # Local-only notes and editor config files
 docs/DECISIONS.md
-docs/GOTCHAS.md
-docs/PROMPT.md
 docs/DB_*.md
 docs/ROADMAP.md
 docs/PLAN.md
+docs/DEPLOY.md
 AGENTS.md
 opencode.json
 
