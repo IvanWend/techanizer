@@ -120,7 +120,16 @@ async def run(
 
 
 def report(results, mismatches, statuses, descriptions, total_postings, verbose) -> None:
-    print(f"\npostings: {total_postings}  statuses: {statuses}")
+    # Micro accuracy: one pooled fraction over every scored field comparison;
+    # the per-field table below is detail, not the summary.
+    all_vals = [v for vals in results.values() for v in vals]
+    if all_vals:
+        correct = sum(all_vals)
+        print(
+            f"\nextraction accuracy: {correct / len(all_vals):.1%} "
+            f"({correct}/{len(all_vals)} field comparisons)"
+        )
+    print(f"postings: {total_postings}  statuses: {statuses}")
     print(f"{'field':18} {'correct':>8} {'total':>6} {'rate':>8}")
     print("-" * 42)
     for field in ("doc_type", "role_count", "company", *SCALAR_FIELDS, "stack",

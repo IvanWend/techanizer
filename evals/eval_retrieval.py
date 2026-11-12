@@ -61,9 +61,7 @@ def main() -> None:
         raise ValueError("set EVAL_DATABASE_URL or DATABASE_URL")
 
     with psycopg.connect(db_url) as conn:
-        print(f"{'query':38} {'N':>4} {'hit@10':>6} {'P@10':>5} {'R@10':>5} {'R@20':>5} {'MRR':>6}")
-        print("-" * 74)
-        rows = []
+        computed = []  # (text, n, hit10, p10, r10, r20, mrr, hits, relevant)
         for text, (kind, term) in QUERIES:
             relevant = ground_truth(conn, kind, term)
             hits = vector_search_run(conn, text, limit=args.limit)
@@ -81,19 +79,24 @@ def main() -> None:
                 if x in relevant:
                     mrr = 1.0 / i
                     break
-            rows.append((p10, mrr, n))
+            computed.append((text, n, hit10, p10, r10, r20, mrr, hits, relevant))
+
+        if computed:
+            mean_p = sum(c[3] for c in computed) / len(computed)
+            mean_mrr = sum(c[6] for c in computed) / len(computed)
+            print(
+                f"retrieval: MRR {mean_mrr:.2f}  precision@10 {mean_p:.2f}  "
+                f"({len(computed)} queries, top-{args.limit})"
+            )
+        print(f"{'query':38} {'N':>4} {'hit@10':>6} {'P@10':>5} {'R@10':>5} {'R@20':>5} {'MRR':>6}")
+        print("-" * 74)
+        for text, n, hit10, p10, r10, r20, mrr, hits, relevant in computed:
             print(f"{text:38} {n:>4} {hit10:>6d} {p10:>5.2f} {r10:>5.2f} {r20:>5.2f} {mrr:>6.3f}")
             if args.verbose:
                 for h in hits[:3]:
                     tag = "•" if (h.raw_posting_id, h.role_index) in relevant else " "
                     print(f"    {tag} {h.similarity:.3f}  {h.title or '?'} @ {h.company or '?'}")
                 print()
-
-        if rows:
-            mean_p = sum(r[0] for r in rows) / len(rows)
-            mean_mrr = sum(r[1] for r in rows) / len(rows)
-            print("-" * 74)
-            print(f"{'mean':38} {'':>4} {'':>6} {mean_p:>5.2f} {'':>5} {'':>5} {mean_mrr:>6.3f}")
 
 
 if __name__ == "__main__":

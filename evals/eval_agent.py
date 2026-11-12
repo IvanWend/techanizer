@@ -714,18 +714,17 @@ def report(rows: list[Row], verbose: bool = False) -> None:
             order.append(q.id)
         grouped[q.id][1].append((passed, answer, evidence, note))
 
-    total_pass = 0
-    total = 0
+    total_pass = sum(1 for *_, passed, _ in rows if passed)
+    total = len(rows)
+    if total:
+        print(f"agent eval: {total_pass}/{total}  ({total_pass / total:.0%})")
     print(f"{'id':4} {'label':36} {'kind':15} {'pass':>5}")
     print("-" * 64)
     for qid in order:
         q, runs = grouped[qid]
         n_pass = sum(1 for p, *_ in runs if p)
-        total_pass += n_pass
-        total += len(runs)
         print(f"{q.id:4} {q.label:36} {q.kind:15} {n_pass}/{len(runs)}")
     print("-" * 64)
-    print(f"{'overall':40} {total_pass}/{total}  ({total_pass / total:.0%})")
 
     by_kind: dict[str, list[int]] = {}
     for qid in order:
