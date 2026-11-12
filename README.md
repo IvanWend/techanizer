@@ -6,12 +6,9 @@ Web3.career, and Habr Career — extracts them into structured, searchable recor
 with verbatim grounding quotes, and answers free-text questions about the corpus
 through a tool-calling agent.
 
-This is a production-oriented demonstration of integrating an LLM into a real
-data pipeline: ingestion → structured extraction → vector storage → a typed,
-tool-calling agent → a localized UI. The source mix is intentionally
-heterogeneous; it is not a statistically representative model of the whole labor
-market, and the agent answers *about the corpus*, refusing questions the data
-cannot support.
+The source is published to read — architecture, models, and evals. Running it
+from source is not supported; the app is live at
+[techanizer.tech](https://techanizer.tech).
 
 ## Architecture
 
@@ -30,7 +27,7 @@ flowchart LR
         ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4.1 Flash)<br/>→ structured roles + verbatim quotes"]
     end
     subgraph STORE["Storage"]
-        db[("Postgres + pgvector<br/>bge-m3 (1024-dim)")]
+        db[("Postgres + pgvector<br/>text-embedding-v4 (1024-dim)")]
     end
     subgraph QUERY["Query"]
         sql["SQL analytics<br/>(skill freq, salary)"]
@@ -56,11 +53,11 @@ flowchart LR
 
 | Stage | Model |
 |---|---|
-| Extraction | DeepSeek V4.1 Flash (Alibaba) |
-| Agent stage 1 (tool-calling) | GLM 5.3 (Alibaba) |
-| Agent stage 2 (prose) | Qwen 3.8 Flash (Alibaba, EN + RU) |
-| Embeddings | Qwen3 text-embedding-v4 (Alibaba, 1024-dim) |
-| Eval judge | GLM 5.3 (Alibaba) |
+| Extraction | DeepSeek V4.1 Flash |
+| Agent stage 1 (tool-calling) | GLM 5.3 |
+| Agent stage 2 (prose) | Qwen 3.8 Flash (EN + RU) |
+| Embeddings | Qwen3 text-embedding-v4 (1024-dim) |
+| Eval judge | GLM 5.3 |
 
 
 ## Evaluation
@@ -78,85 +75,31 @@ live board.
 - **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 1.00,
   precision@10 0.92 (Qwen3 text-embedding-v4). Hybrid dense + lexical (tsvector) legs fused by
   reciprocal rank. bge-m3 baseline: MRR 0.96, precision@10 0.73.
-- **Tests:** 253 unit/contract/serving/integration tests, plus the above LLM
+- **Tests:** 278 unit/contract/serving/integration tests, plus the above LLM
   evals.
 
-## Try it locally
+## Try it
 
-### Requirements
-
-- Python 3.13, [uv](https://docs.astral.sh/uv/), and Docker Compose
-- PostgreSQL client (`psql`)
-- An Alibaba Cloud (DashScope) API key
-- A Web3.career API token if that source is enabled
-
-### Install and configure
+The project is live at [techanizer.tech](https://techanizer.tech):
 
 ```bash
-uv sync
-cp .env.example .env
-# Fill in ALIBABA_API_KEY, DATABASE_URL, and other required values.
-set -a; . ./.env; set +a
-```
-
-Start PostgreSQL and apply the schema:
-
-```bash
-docker compose up -d
-for f in db/schema/*.sql; do
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
-done
-```
-
-Load, extract, and embed postings (or run all three as one scheduled command):
-
-```bash
-uv run python -m techanizer.ingestion.load
-uv run python -m techanizer.extraction.pipeline
-uv run python -m techanizer.storage.embed
-
-# equivalent one-shot scheduler:
-uv run python -m techanizer.ops.scheduler
-```
-
-Start the API and UI:
-
-```bash
-uv run uvicorn techanizer.serving.app:app
-```
-
-Open `http://localhost:8000`. The API also exposes:
-
-```bash
-curl http://localhost:8000/health
-curl --get 'http://localhost:8000/ask' \
+curl https://techanizer.tech/health
+curl --get 'https://techanizer.tech/ask' \
   --data-urlencode 'q=What skills are common among senior backend roles?' \
   --data-urlencode 'lang=en'
 ```
-
-If `ASK_API_KEY` is set, add `-H "Authorization: Bearer $ASK_API_KEY"` to the
-second command. The browser key is intentionally only a shared demo gate, not
-user authentication — it is visible to anyone who can load the frontend.
 
 ## Deployment
 
 The same image runs in production on an Aliyun ECS VM behind Caddy TLS: the
 `Dockerfile` (Node build stage + Python runtime) builds one image,
 `compose.prod.yml` runs it with db and caddy, and the `Caddyfile` fronts
-`techanizer.tech` with automatic HTTPS. `docs/DEPLOY.md` is the step-by-step
-runbook — VM prep, secrets, data restore, smoke tests, and the TLS cutover.
+`techanizer.tech` with automatic HTTPS.
 
 ## MCP access
 
-The same three database-backed tools are available through a stdio MCP server:
-
-```bash
-uv run python -m techanizer.mcp.server
-```
-
-Configure the MCP host with absolute paths and put `DATABASE_URL` and
-`ALIBABA_API_KEY` in the host's `env` block — the `vector_search` tool embeds
-the query, so it needs the model key even though the SQL tools do not.
+The same three database-backed tools are also exposed through a stdio MCP
+server (`techanizer/mcp/`).
 
 ## Project layout
 
@@ -172,7 +115,7 @@ frontend/                     React/Vite/Tailwind UI
 db/schema/                    re-runnable database migrations
 tests/                        unit, contract, serving, and integration tests
 evals/                        frozen snapshots, gold data, and evaluations
-docs/                         roadmap and engineering decisions
+docs/                         model documentation: card and BPMN diagrams
 ```
 
 The installable package and its import name are both `techanizer`.
@@ -189,9 +132,4 @@ The installable package and its import name are both `techanizer`.
 
 ## Validation
 
-```bash
-uv run ruff check techanizer/ evals/ tests/
-uv run mypy techanizer/ tests/
-uv run pytest -q
-cd frontend && npm run lint && npm run build
-```
+CI enforces ruff, mypy, and the full pytest suite on every push.

@@ -17,7 +17,7 @@ flowchart LR
         ext["LLM extraction + Pydantic validation<br/>(DeepSeek V4.1 Flash)<br/>→ structured roles + verbatim quotes"]
     end
     subgraph STORE["Storage"]
-        db[("Postgres + pgvector<br/>bge-m3 (1024-dim)")]
+        db[("Postgres + pgvector<br/>text-embedding-v4 (1024-dim)")]
     end
     subgraph QUERY["Query"]
         sql["SQL analytics<br/>(skill freq, salary)"]

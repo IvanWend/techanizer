@@ -6,20 +6,20 @@
 
 ```mermaid
 flowchart TD
-    A([Trigger: extraction errors or scheduled review]) --> B[Collect new examples and corrected labels]
-    B --> C[Validate data and update versioned dataset]
-    C --> D[Create candidate prompt/schema version]
-    D --> E[Run evaluation on fixed test set]
-    E --> F{Metrics and regression tests passed?}
-    F -- No --> G[Reject candidate, keep current version]
-    G --> H([Finish])
-    F -- Yes --> I[Record prompt, schema and metrics version]
-    I --> J[Deploy configuration]
-    J --> K[Verify after deployment]
-    K --> L{Errors or quality regression?}
-    L -- Yes --> M[Roll back to previous version]
+    A([Триггер: ошибки извлечения или плановая проверка]) --> B[Собрать новые примеры и исправленные метки]
+    B --> C[Проверить данные и обновить версионируемый датасет]
+    C --> D[Создать кандидат-версию промпта или схемы]
+    D --> E[Запустить оценку на фиксированном тестовом наборе]
+    E --> F{Метрики и регрессионные тесты пройдены?}
+    F -- Нет --> G[Отклонить кандидата, сохранить текущую версию]
+    G --> H([Завершение])
+    F -- Да --> I[Зафиксировать версии промпта, схемы и метрик]
+    I --> J[Развернуть конфигурацию]
+    J --> K[Проверка после развёртывания]
+    K --> L{Ошибки или ухудшение качества?}
+    L -- Да --> M[Откат к предыдущей версии]
     M --> H
-    L -- No --> N([New version in use])
+    L -- Нет --> N([Новая версия в работе])
 ```
 
 ## Этапы процесса

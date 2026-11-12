@@ -3,20 +3,19 @@
 
 ## Model Details
 
-- **Тип:** LLM модели через сторонних провайдеров, вызываются через API; настройка промптом и Pydantic-схемой. Эмбеддинги: предобученная модель `bge-m3`, запускается локально через Ollama.
-- **Провайдеры:** Alibaba Cloud Model Studio (DashScope) — DeepSeek V4.1 Flash, GLM 5.3, Qwen 3.8 Flash; BAAI (`bge-m3`).
+- **Тип:** LLM-модели и эмбеддинги через стороннего провайдера, вызываются через API; настройка промптом и Pydantic-схемой.
+- **Провайдеры:** Alibaba Cloud Model Studio — DeepSeek V4.1 Flash, GLM 5.3, Qwen 3.8 Flash, text-embedding-v4.
 - **Версии:** фиксируются названия моделей; сами модели версионирует провайдер, поэтому результат может меняться между запусками.
 
 Таблица с описанием этапов и моделей:
 
 | Этап | Модель |
 |---|---|
-| Extraction | DeepSeek V4.1 Flash (Alibaba) |
-| Agent, stage 1 (tool calling) | GLM 5.3 (Alibaba) |
-| Agent, stage 2 (prose) | Qwen 3.8 Flash (Alibaba, EN + RU) |
-| Gold labeler (extraction eval) | GLM 5.3 (Alibaba) |
-| Embeddings | bge-m3 |
-| LLM as a Judge (agent prose) | GLM 5.3 (Alibaba) |
+| Извлечение | DeepSeek V4.1 Flash |
+| Агент, первая стадия (вызов инструментов) | GLM 5.3 |
+| Агент, вторая стадия (генерация ответа) | Qwen 3.8 Flash (EN + RU) |
+| Эмбеддинги | Qwen3 text-embedding-v4 (1024-dim) |
+| LLM-как-судья | GLM 5.3 |
 
 
 ## Intended Use
@@ -26,7 +25,6 @@
 - фильтрации и поиска вакансий по навыкам, должностям, уровню, локации и другим параметрам;
 - SQL-аналитики собранного корпуса;
 - векторного поиска и ответов AI-агента на вопросы пользователей об имеющихся данных.
-Модель предназначена для исследовательского анализа собранного корпуса и изучения тенденций внутри него.
 
 
 ## Inputs
@@ -62,7 +60,7 @@
 
 **Agent eval:** 59/60 (детерминированные, семантические, refusal/injection запросы).
 
-**Retrieval:** 12 запросов с эталонной разметкой; mean MRR 0,66, precision@10 0,48. (планируется улучшение метрики за счёт добавления reranker или  hybrid lexical+vector поиска.)
+**Retrieval:** 12 запросов с эталонной разметкой; mean MRR 1,00, precision@10 0,92 (гибридный поиск pgvector + tsvector, слияние через reciprocal rank fusion).
 
 ## Considerations
 
