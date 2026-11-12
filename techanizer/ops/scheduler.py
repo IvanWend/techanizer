@@ -50,7 +50,8 @@ class WeeklySummary(NamedTuple):
 
 
 # The weekly re-ingestion: load -> extract -> embed, wired as one idempotent
-# chain so a timer can call it (the cron line lives in docs/DEPLOY.md §7).
+# chain so a timer can call it (cron: `7 16 * * 0` UTC; the full line with
+# flock and in-container exec lives in the untracked docs/DEPLOY.md §7).
 # Every stage is resumable — each pending() picks up whatever a prior run left —
 # so a mid-chain crash re-runs safely. A stage that fails raises and stops the
 # run: nothing downstream is useful when the stage before it produced nothing.
