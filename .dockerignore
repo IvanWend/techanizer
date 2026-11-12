@@ -1,5 +1,4 @@
 # What never enters the build context: secrets, caches, git, heavy dirs.
-# The image gets its key via the VITE_ASK_API_KEY build arg — the only door.
 .env
 frontend/.env*
 .git

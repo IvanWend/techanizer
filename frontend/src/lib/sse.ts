@@ -41,8 +41,9 @@ export async function streamAnswer(
   onEvent: (e: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  // The shared /ask key, when the server has one set. Sent from the build's
-  // env (VITE_ASK_API_KEY); absent in dev, where /ask is open.
+  // Dormant since the shared-key gate was removed (2026-11-12, DECISIONS
+  // "Serving"): prod and dev both leave VITE_ASK_API_KEY unset, so no header
+  // is sent. Kept as the seam for a future per-session token.
   const apiKey: string | undefined = import.meta.env.VITE_ASK_API_KEY
   const response = await fetch("/ask", {
     method: "POST",

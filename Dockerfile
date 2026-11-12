@@ -5,10 +5,6 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-# Vite inlines VITE_* env vars at build time, so this key lands in the
-# served JS bundle — browser-visible by design (DECISIONS "Live deployment cut").
-ARG VITE_ASK_API_KEY
-ENV VITE_ASK_API_KEY=$VITE_ASK_API_KEY
 # Cap Node's heap below the 2G VM ceiling; swap covers the rest.
 RUN NODE_OPTIONS=--max-old-space-size=1536 npm run build
 

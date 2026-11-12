@@ -26,16 +26,11 @@ services:
   app:
     build:
       context: .
-      args:
-        # Baked into the frontend bundle by the Node build stage.
-        VITE_ASK_API_KEY: ${ASK_API_KEY:?set ASK_API_KEY in .env}
     environment:
       # Compose owns this string: host is the service name (not localhost),
       # so .env can't carry a dev-style URL that points the app at nothing.
       DATABASE_URL: postgresql://techanizer:${POSTGRES_PASSWORD}@db:5432/techanizer
       ALIBABA_API_KEY: ${ALIBABA_API_KEY:?set ALIBABA_API_KEY in .env}
-      # Same value as the build arg: the server side of the same gate.
-      ASK_API_KEY: ${ASK_API_KEY:?}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-10}
       RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
     depends_on:
