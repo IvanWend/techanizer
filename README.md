@@ -66,17 +66,15 @@ Evaluations run against a frozen, byte-identical snapshot of the structured
 corpus (`evals/snapshots/`), so results are reproducible and independent of the
 live board.
 
-- **Extraction accuracy** (40 gold-labeled postings, exact-match on discrete
-  fields): seniority 94%, employment type 96%, remote policy 96%.
-- **Grounding audit** (12,598 extracted values): 97% verbatim; the remainder are
-  stitched bullet fragments, not fabrications.
-- **Agent eval** (deterministic, semantic, refusal, injection, and cross-language
-  probes, 3 runs each): 59/60 on the frozen snapshot.
-- **Retrieval quality** (12 labeled queries, lexical ground truth): mean MRR 1.00,
-  precision@10 0.92 (Qwen3 text-embedding-v4). Hybrid dense + lexical (tsvector) legs fused by
-  reciprocal rank. bge-m3 baseline: MRR 0.96, precision@10 0.73.
-- **Tests:** 278 unit/contract/serving/integration tests, plus the above LLM
-  evals.
+| Eval | Metric | Score |
+|---|---|---|
+| Extraction (40 gold-labeled postings) | micro accuracy, exact-match | 87.3% |
+| Grounding audit (12,598 values) | verbatim | 97% |
+| Agent (3 runs per question) | pass rate | 59/60 |
+| Retrieval (12 labeled queries, hybrid RRF) | MRR | 1.00 |
+| Retrieval | precision@10 | 0.92 |
+| Retrieval, bge-m3 baseline | MRR / precision@10 | 0.96 / 0.73 |
+| Tests | unit / contract / serving / integration | 278 |
 
 ## Try it
 
