@@ -6,6 +6,8 @@ cleared and the staged A-records (@/www → 47.86.2.120) resolving.
 
 Every command runs where it says: **dev** = the dev box, **VM** =
 `ssh root@47.86.2.120`. v2rayA tproxy stays OFF while working on the VM.
+A local `sudo -i` shell looks identical to an ssh one — when output surprises
+you, `whoami; hostname` before anything else.
 
 ## 1. VM prep (once)
 
@@ -32,7 +34,9 @@ openssl rand -hex 32   # → POSTGRES_PASSWORD
 openssl rand -hex 32   # → ASK_API_KEY
 ```
 
-Write `/opt/techanizer/.env` — the three vars compose reads:
+Write `/opt/techanizer/.env` — the three vars compose reads (values are **raw**:
+no quotes around the hex — compose strips quotes when interpolating, but a
+`grep` of the value for smoke curls doesn't, and the mismatch 401s):
 
 ```dotenv
 POSTGRES_PASSWORD=<generated>
@@ -59,14 +63,19 @@ scp /tmp/opencode/live_*.sql root@47.86.2.120:/opt/techanizer/
 ```
 
 ```bash
-# VM — db up first (init/ creates the extensions); then restore.
+# VM — db up first (init/ creates the extensions); --wait because a fresh
+# container runs initdb for a few seconds before accepting connections;
+# then restore.
 cd /opt/techanizer
-docker compose -f compose.prod.yml up -d db
+docker compose -f compose.prod.yml up -d --wait db
 docker compose -f compose.prod.yml exec -T db \
   psql -U techanizer -v ON_ERROR_STOP=1 -d techanizer < live_*.sql
-# sanity: posting count should match dev
+# sanity: counts must match the dev box (there is no `postings` table —
+# the corpus is raw_postings + structured_postings)
 docker compose -f compose.prod.yml exec db \
-  psql -U techanizer -d techanizer -c 'SELECT count(*) FROM postings;'
+  psql -U techanizer -d techanizer -t \
+  -c 'SELECT count(*) FROM raw_postings;' \
+  -c 'SELECT count(*) FROM structured_postings;'
 ```
 
 ## 4. Build + start
