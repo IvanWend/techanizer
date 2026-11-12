@@ -133,6 +133,33 @@ docker compose -f compose.prod.yml logs -f caddy   # wait: "certificate obtained
 curl -I https://techanizer.tech/    # valid cert — no -k
 ```
 
+## 7. Scheduler cron (weekly refresh)
+
+The prod db publishes no port (§4), so the weekly load → extract → embed runs
+inside the app container — compose already injects DATABASE_URL and
+ALIBABA_API_KEY there. Cron reads the VM clock: HK time = China time (UTC+8),
+but if `timedatectl` shows UTC the schedule below is Sunday-morning UTC —
+use `7 16 * * 0` instead (same instant).
+
+```bash
+# VM, as root
+timedatectl                                    # Asia/Shanghai or Asia/Hong_Kong
+docker compose -f compose.prod.yml exec app \
+  python -m techanizer.ops.scheduler --dry-run # smoke: pending counts, no API cost
+mkdir -p logs
+crontab -e                                     # add the line below
+```
+
+```cron
+# Monday 00:07 China time — weekly load -> extract -> embed
+7 0 * * 1 cd /opt/techanizer && flock -n /tmp/techanizer-weekly.lock docker compose -f compose.prod.yml exec -T app python -m techanizer.ops.scheduler >> logs/weekly.log 2>&1
+```
+
+- `cd` first: cron has no cwd, and compose needs compose.prod.yml + .env in it.
+- `-T` = no TTY under cron; `flock -n` makes an overlapping slow run no-op.
+- Check after the first Monday: `grep "weekly ingest done" logs/weekly.log`;
+  truncate when big: `truncate -s 0 logs/weekly.log`.
+
 ## Day-2 ops
 
 ```bash
@@ -146,4 +173,4 @@ docker compose -f compose.prod.yml down          # stop; data survives (volume)
   volume is untouched.
 - **Economy-mode Stop releases the public IP** (trial ECS): after any stop,
   re-check the IP, update the A-records, and re-run the TLS flip if it changed.
-- Scheduler cron (weekly refresh) is the next phase — not in this cut.
+- Scheduler: weekly refresh via cron — §7 (log: `logs/weekly.log`).

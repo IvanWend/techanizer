@@ -50,7 +50,7 @@ class WeeklySummary(NamedTuple):
 
 
 # The weekly re-ingestion: load -> extract -> embed, wired as one idempotent
-# chain so a timer can call it (see ROADMAP step 7 for the actual cron line).
+# chain so a timer can call it (the cron line lives in docs/DEPLOY.md §7).
 # Every stage is resumable — each pending() picks up whatever a prior run left —
 # so a mid-chain crash re-runs safely. A stage that fails raises and stops the
 # run: nothing downstream is useful when the stage before it produced nothing.
