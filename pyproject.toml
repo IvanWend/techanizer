@@ -26,27 +26,19 @@ dependencies = [
 
 [tool.ruff]
 line-length = 100
-# Ruff also formats Python inside markdown fences; the docs use hand-aligned
-# comments on purpose, so keep it away from them.
 extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
-# E/W pycodestyle, F pyflakes, I import sorting, UP pyupgrade, B bugbear, ISC implicit str concat
 select = ["E", "W", "F", "I", "UP", "B", "ISC"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The package is installable (see [build-system]); `uv run` installs it editable,
-# so `import techanizer` resolves. pythonpath stays for the non-package
-# `evals/` and `tests/` modules, which pytest otherwise wouldn't put on sys.path.
 pythonpath = ["."]
 
 [tool.mypy]
 python_version = "3.12"
 warn_unused_configs = true
 warn_return_any = true
-# Checks bodies of unannotated functions too, without demanding annotations yet.
-# Flip on disallow_untyped_defs once the ingestion modules carry signatures.
 check_untyped_defs = true
 disallow_untyped_defs = false
 
