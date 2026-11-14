@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 
-# Secrets — .env.example is committed, .env never is
+# Secrets
 .env
 
 # Local-only notes and editor config files
