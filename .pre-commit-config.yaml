@@ -1,4 +1,3 @@
-# Snapshot dumps are binary and larger than the default 500KB limit.
 exclude: ^evals/snapshots/
 
 repos:
